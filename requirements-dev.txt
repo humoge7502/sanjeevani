@@ -11,7 +11,7 @@ httpx==0.28.1
 
 # Lint and typecheck. `scripts/verify.sh` runs both, so a missing tool is a
 # verification failure rather than a silent skip.
-ruff==0.16.3
+ruff==0.16.7
 mypy==2.3.1
 
 # Type stubs for the two third-party libraries that ship none. With these
