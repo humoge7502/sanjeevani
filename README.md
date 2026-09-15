@@ -109,7 +109,7 @@ Every command below exists in this repository. Nothing is aspirational.
 | `bash scripts/verify.sh` | Everything: nine gates — health, compile, lint, types, tests, browser, build |
 | `python -m ruff check .` | Python lint (also a gate in `verify.sh`) |
 | `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`) |
-| `python -m pytest` | Backend suite (155 tests) |
+| `python -m pytest` | Backend suite (159 tests) |
 | `python -m pytest -m redteam` | Adversarial governance-bypass suite |
 | `python -m pytest -m contract` | Frozen-contract suite |
 | `npm --prefix frontend run test` | Frontend unit tests (41) |
@@ -139,7 +139,7 @@ sanjeevani/
 │   └── orchestrator.py         the loop coordinator
 ├── frontend/                   React + TypeScript command center
 │   └── e2e/                    Playwright: hero journey · governance · axe-core a11y
-├── tests/                      155 tests: unit 69 · contract 36 · integration 11 · e2e 24 · redteam 26
+├── tests/                      159 tests: unit 73 · contract 36 · integration 11 · e2e 24 · redteam 26
 ├── scripts/                    health · demo · reset · dev · verify · serve
 ├── Dockerfile                  multi-stage build -> one image (API + built UI)
 ├── docker-compose.yml          one-command deployment with a persistent ledger volume
@@ -253,16 +253,33 @@ the running container.
 ## Testing
 
 ```
-155 passed  (backend: unit 69 · contract 36 · integration 11 · e2e 24 · red team 26)
+159 passed  (backend: unit 73 · contract 36 · integration 11 · e2e 24 · red team 26)
  41 passed  (frontend: 25 pure logic · 16 static accessibility guards)
  48 passed  (browser: 24 in real Chromium × 2 viewports)
 ```
 
 The backend markers **overlap** — the 11 integration cases are marked inside the
-e2e module, so they are counted by both. 155 is the suite total; summing the
+e2e module, so they are counted by both. 159 is the suite total; summing the
 markers would double-count. `verify.sh` also runs `ruff` and `mypy` as gates, and
 a missing dev tool fails the run rather than being skipped: "lint passes" is only
 meaningful if lint actually ran.
+
+### The suite had been deleting the ledger
+
+Found while making the system deployable, and worth recording because it is the
+failure mode that tests are supposed to prevent.
+
+`orchestrator.reset()` calls `ledger.reset()`, whose default truncates the ledger
+file — and several tests call `reset()` to exercise normal behaviour. With the
+runtime directory pointed at the repository, **running `pytest` deleted the
+developer's on-disk audit ledger**: a 43-record chain came back as 4 lines.
+Nothing failed. A suite quietly destroying application state looks exactly like a
+suite passing.
+
+`tests/conftest.py` now redirects the runtime directory to a per-session temp
+directory, and `tests/unit/test_runtime_isolation.py` fails the build if that
+redirect is ever removed. Re-running the suite now leaves the real ledger
+untouched at 43 lines.
 
 The static accessibility guards earned their place immediately: on first run they
 found that `.skip-link` was styled in CSS and `<main id="main">` existed, but

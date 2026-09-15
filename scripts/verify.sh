@@ -55,10 +55,10 @@ else
   FAILED=1
 fi
 
-# 155 tests. Markers: unit 69 · contract 36 · integration 11 · e2e 24 · redteam 26.
+# 159 tests. Markers: unit 73 · contract 36 · integration 11 · e2e 24 · redteam 26.
 # Note the markers OVERLAP: the integration cases are marked inside the e2e
 # module, so they are counted by both. The suite total is the honest number.
-step "5/9  Backend test suite (155: unit · contract · integration · e2e · red team)"
+step "5/9  Backend test suite (159: unit · contract · integration · e2e · red team)"
 run "$PYTHON" -m pytest -q
 
 step "6/9  Frontend typecheck (app, design system and browser specs)"
