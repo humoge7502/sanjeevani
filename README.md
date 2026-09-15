@@ -1,5 +1,7 @@
 # SANJEEVANI
 
+[![CI](https://github.com/humoge7502/sanjeevani/actions/workflows/ci.yml/badge.svg)](https://github.com/humoge7502/sanjeevani/actions/workflows/ci.yml)
+
 **A governed closed-loop recovery system for pharmaceutical supply networks.**
 
 > AI detects and understands a disruption, deterministic systems evaluate the
@@ -67,6 +69,27 @@ p_stockout = 1 - exp(-5.00/5) = 0.6321
 consigned fraction 0.2667 condemned from device trace TVE-4417
 ```
 
+## What it looks like
+
+Real captures of the running command center (Playwright driving the app on
+:8787, no staging build — the same view `bash scripts/dev.sh` gives you).
+
+| The human gate | The governed loop, closed |
+|---|---|
+| ![Command center stopped at the approval gate: M1 intelligence complete, risk-tiered compliance verdicts, the approval console waiting on a human](docs/assets/screenshot-intelligence.png) | ![After one approval: SAP-shaped execution receipts with correlation IDs, the append-only audit chain verifying intact, and the learning scorecard](docs/assets/screenshot-governance.png) |
+
+**Left** — the moment the system deliberately stops. M1 intelligence is
+complete, the policy engine and compliance checks have run, and the approval
+console is the only way forward. The actor dropdown is not cosmetic: an
+approver whose role does not match the plan's requirement is refused with
+403 by the backend, not hidden by the UI.
+
+**Right** — one approval later. Three transactional SAP-shaped posts with a
+correlation ID, one receipt, the audit timeline showing every stage's hash
+(the chain verifies intact), and the predicted-vs-actual learning signal.
+Every number on screen traces to a ledger record you can read in the same
+table.
+
 ---
 
 ## The loop
@@ -107,8 +130,8 @@ Every command below exists in this repository. Nothing is aspirational.
 | `python scripts/serve.py` | **Production entrypoint**: serves the API *and* the built UI on one port |
 | `docker compose up --build` | Same thing, containerised: UI + API on :8787 |
 | `bash scripts/verify.sh` | Everything: nine gates — health, compile, lint, types, tests, browser, build |
-| `python -m ruff check .` | Python lint (also a gate in `verify.sh`) |
-| `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`) |
+| `python -m ruff check .` | Python lint (also a gate in `verify.sh`, or `npm run lint`) |
+| `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`, or `npm run typecheck`) |
 | `python -m pytest` | Backend suite (159 tests) |
 | `python -m pytest -m redteam` | Adversarial governance-bypass suite |
 | `python -m pytest -m contract` | Frozen-contract suite |
@@ -146,6 +169,41 @@ sanjeevani/
 └── docs/                       architecture · contracts · boundaries · deployment …
     └── evidence/               authoritative real-data package: 477 sourced records + frozen schemas
 ```
+
+### How a decision flows
+
+```mermaid
+flowchart LR
+    subgraph M1["M1 · Upstream intelligence"]
+        SENSE["A1 Sensing"] --> VERIFY["A2 Verification<br/>+ Scenario"] --> IMPACT["A3 Network impact"]
+    end
+
+    FIX["M2 boundary:<br/>RecoveryPlan fixture<br/>(ADR 0001)"]
+
+    subgraph M3["M3 · Governed execution"]
+        POLICY["Policy engine"] --> COMPLY["Compliance"] --> GATE{{"HUMAN<br/>APPROVAL"}} --> EXEC["SAP-shaped execution<br/>IBP · TM · Ariba mocks"]
+    end
+
+    subgraph A6["A6 · Memory"]
+        LEDGER[("Append-only<br/>hash-chained ledger")]
+        LEARN["Predicted-vs-actual<br/>learning"]
+    end
+
+    FEEDS["Deterministic feeds<br/>+ device telemetry"] --> SENSE
+    IMPACT --> FIX --> POLICY
+    GATE -- "the only edge<br/>into execution" --> EXEC
+    EXEC --> LEDGER --> LEARN
+    API["FastAPI<br/>the security boundary"]
+    UI["React command center"]
+    UI --- API
+    API --- M1
+    API --- M3
+    API --- A6
+```
+
+Every state-changing request travels UI → API → orchestrator → approval state
+machine. The UI cannot set a state; it can only request that the backend move
+one, and the machine refuses what governance refuses.
 
 ### Documentation map
 
@@ -254,7 +312,7 @@ the running container.
 
 ```
 159 passed  (backend: unit 73 · contract 36 · integration 11 · e2e 24 · red team 26)
- 41 passed  (frontend: 25 pure logic · 16 static accessibility guards)
+ 46 passed  (frontend: 30 pure logic · 16 static accessibility guards)
  48 passed  (browser: 24 in real Chromium × 2 viewports)
 ```
 
@@ -319,8 +377,10 @@ python -m pytest -m redteam -v
 ## Source material
 
 The specification this build implements lives in
-[`docs/source/`](docs/source/) — the SANJEEVANI unified dossier and the
-three-member workflow handoff. [`docs/research-evidence.md`](docs/research-evidence.md)
+[`docs/source/`](docs/source/) — text extractions of the SANJEEVANI unified
+dossier and the three-member workflow handoff (originals archived verbatim in
+[`docs/evidence/source_pdfs/`](docs/evidence/source_pdfs/)).
+[`docs/research-evidence.md`](docs/research-evidence.md)
 records which external sources materially changed the implementation, with the
 distinction between **fact**, **inference** and **hypothesis** made explicit.
 
@@ -328,6 +388,9 @@ distinction between **fact**, **inference** and **hypothesis** made explicit.
 
 ## License / attribution
 
-Prototype built for SAP Hackfest 2026. SAP, IBP, TM, Ariba, HANA and Joule are
-trademarks of SAP SE. No SAP tenant, service or credential is used or contacted
-anywhere in this repository.
+Code is released under the [MIT License](LICENSE) — see [`LICENSE`](LICENSE).
+Third-party names (SAP, IBP, TM, Ariba, HANA, Joule) remain trademarks of
+SAP SE; no SAP tenant, service or credential is used or contacted anywhere in
+this repository.
+
+Prototype built for SAP Hackfest 2026.

@@ -25,7 +25,10 @@
     "test:browser": "npm --prefix frontend run test:browser",
 
     "build": "npm --prefix frontend run build",
-    "typecheck": "python -m compileall -q backend scripts && npm --prefix frontend exec tsc -b",
-    "lint": "python -m compileall -q backend scripts"
+    "typecheck": "npm run typecheck:py && npm --prefix frontend exec tsc -b",
+    "typecheck:py": "python -m mypy backend scripts",
+    "lint": "python -m ruff check .",
+    "lint:py": "python -m ruff check .",
+    "verify": "bash scripts/verify.sh"
   }
 }

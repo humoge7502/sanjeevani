@@ -50,14 +50,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  // A proxy or a crashed backend can answer with an HTML error page; a hard
+  // JSON.parse there would surface as a bare SyntaxError and hide the status
+  // code — the one thing the operator needs. Parse defensively: error
+  // responses fall back to a legible envelope that keeps the HTTP status, and
+  // a non-JSON *success* is its own clear error rather than a SyntaxError.
   const text = await response.text();
-  const body: unknown = text ? JSON.parse(text) : null;
+  let body: unknown = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      if (response.ok) {
+        throw new Error(
+          `Backend at ${BASE || "the dev proxy"} returned ${response.status} with a non-JSON body where JSON was expected.`,
+        );
+      }
+      body = {
+        error: "NON_JSON_RESPONSE",
+        message: `Backend returned ${response.status} with a non-JSON body.`,
+      };
+    }
+  }
 
   if (!response.ok) {
-    const payload = (body ?? { message: response.statusText }) as ApiError;
+    // `||` not `??` on purpose: a body with `message: ""` — or no body at all,
+    // where statusText is empty on HTTP/2 — must still yield a legible
+    // message that includes the status code.
+    const payload = (body ?? {}) as Partial<ApiError>;
     throw new GovernanceRefusal({
-      error: payload.error ?? "HTTP_ERROR",
-      message: payload.message ?? `Request failed with ${response.status}`,
+      error: payload.error || "HTTP_ERROR",
+      message: payload.message || `Request failed with ${response.status}`,
       detail: payload.detail,
       governance: payload.governance,
     });
