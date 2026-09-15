@@ -110,12 +110,18 @@ def main() -> int:
         return f"impact reproducible · revenue at risk ${first['revenue_at_risk']:,.2f}"
 
     def contracts() -> str:
-        from backend.contracts import CONTRACT_VERSION, Event, Impact, RecoveryPlan
+        from backend.contracts import (
+            CONTRACT_VERSION,
+            Event,
+            EventSeverity,
+            Impact,
+            RecoveryPlan,
+        )
 
         Event(
             event_id="EVT-001",
             type="COLD_CHAIN_EXCURSION",
-            severity="HIGH",
+            severity=EventSeverity.HIGH,
             confidence=0.96,
             timestamp="2026-09-30T06:00:00Z",
             source="IoT",

@@ -103,12 +103,16 @@ Every command below exists in this repository. Nothing is aspirational.
 | `python scripts/demo.py --to-gate` | Stop at the human approval gate |
 | `python scripts/demo.py --json` | Machine-readable transcript |
 | `python scripts/reset.py` | Clear ledger, approvals and SAP mock logs |
-| `bash scripts/dev.sh` | Backend + frontend together |
-| `bash scripts/verify.sh` | Everything: health, compile, tests, typecheck, browser, build |
-| `python -m pytest` | Backend suite (150 tests) |
+| `bash scripts/dev.sh` | Backend + frontend together (dev servers, HMR) |
+| `python scripts/serve.py` | **Production entrypoint**: serves the API *and* the built UI on one port |
+| `docker compose up --build` | Same thing, containerised: UI + API on :8787 |
+| `bash scripts/verify.sh` | Everything: nine gates — health, compile, lint, types, tests, browser, build |
+| `python -m ruff check .` | Python lint (also a gate in `verify.sh`) |
+| `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`) |
+| `python -m pytest` | Backend suite (155 tests) |
 | `python -m pytest -m redteam` | Adversarial governance-bypass suite |
 | `python -m pytest -m contract` | Frozen-contract suite |
-| `npm --prefix frontend run test` | Frontend unit tests (38) |
+| `npm --prefix frontend run test` | Frontend unit tests (41) |
 | `npm --prefix frontend run test:browser` | **Real Chromium**: hero journey, governance, accessibility (48) |
 | `npm --prefix frontend run test:browser:headed` | Same, with a visible browser — useful in a rehearsal |
 | `npm --prefix frontend run build` | Production build |
@@ -135,9 +139,11 @@ sanjeevani/
 │   └── orchestrator.py         the loop coordinator
 ├── frontend/                   React + TypeScript command center
 │   └── e2e/                    Playwright: hero journey · governance · axe-core a11y
-├── tests/                      unit (64) · contract (36) · e2e (24) · redteam (26)
-├── scripts/                    health · demo · reset · dev · verify
-└── docs/                       architecture · contracts · boundaries · runbook · security …
+├── tests/                      155 tests: unit 69 · contract 36 · integration 11 · e2e 24 · redteam 26
+├── scripts/                    health · demo · reset · dev · verify · serve
+├── Dockerfile                  multi-stage build -> one image (API + built UI)
+├── docker-compose.yml          one-command deployment with a persistent ledger volume
+└── docs/                       architecture · contracts · boundaries · deployment …
     └── evidence/               authoritative real-data package: 477 sourced records + frozen schemas
 ```
 
@@ -152,12 +158,13 @@ sanjeevani/
 | [`docs/security-threat-model.md`](docs/security-threat-model.md) | STRIDE review with mitigations and accepted risks |
 | [`docs/design-system.md`](docs/design-system.md) | Tokens, hierarchy, motion, accessibility |
 | [`docs/performance-budget.md`](docs/performance-budget.md) | Measured budgets and how to reproduce them |
+| [`docs/deployment.md`](docs/deployment.md) | **How to deploy it**: the single-image layout, config, ledger volume, scale limits |
 | [`docs/skills-registry.md`](docs/skills-registry.md) | Which external skills were evaluated and why none were installed |
 | [`docs/research-evidence.md`](docs/research-evidence.md) | Sources that changed the implementation, fact vs inference |
 | [`docs/competitive-benchmark.md`](docs/competitive-benchmark.md) | Everstream · Kinaxis · SAP IBP, vendor claims labelled |
 | [`docs/judge-defense.md`](docs/judge-defense.md) | The hard questions and the honest answers |
 | [`docs/evidence/`](docs/evidence/) | **The real-data package**: 477 records with page-level provenance, the six frozen schemas, and the raw JSON of all 58 web searches |
-| [`docs/decisions/`](docs/decisions/) | Eight ADRs, each with its downsides listed |
+| [`docs/decisions/`](docs/decisions/) | Nine ADRs, each with its downsides listed |
 
 ---
 
@@ -195,7 +202,7 @@ full inventory. In short:
 | **Deterministic** | The 12-node network, 12 SKUs, 6 lanes, 8 consignments · scripted signal feeds · device telemetry · post-execution observations · a frozen scenario clock so every run is reproducible |
 | **Simulated** | IoT telemetry source · post-execution outcome feedback · trade/sanctions screening lists |
 | **Mocked** | SAP IBP / TM / Ariba surfaces · the `RecoveryPlan` (an M2 fixture — **no MILP is solved and no digital twin is replayed**) |
-| **Not built** | M2 digital twin and optimizer · real SAP connectors · any trained forecasting model · authentication and multi-tenancy |
+| **Not built** | M2 digital twin and optimizer · real SAP connectors · any trained forecasting model · authentication and multi-tenancy · horizontal scaling |
 | **AI usage** | **No language model participates in any number.** An `llm_enabled` flag exists, is off, and could only ever add narrative text. |
 
 Compliance checks are labelled `configured_policy`, `simulated_rule` or
@@ -204,13 +211,58 @@ regulatory advice and nothing claims certification.
 
 ---
 
+## Deployment
+
+It ships as **one deployable unit**: a multi-stage image where the API also
+serves the built command center, so there is no second web server and no CORS.
+
+```bash
+docker compose up --build      # -> http://localhost:8787
+```
+
+Full guide: [`docs/deployment.md`](docs/deployment.md). The parts worth knowing
+up front:
+
+- **Multi-stage build.** `npm run build` (which is `tsc -b && vite build`) runs in
+the build stage, so a type error **fails the image build** instead of shipping.
+Only `frontend/dist` crosses into the runtime stage — `node` is absent from the
+final image.
+- **~235 MB, non-root (UID 10001), `/app/runtime` declared a `VOLUME`.** The
+  ledger is the only mutable state; without the volume the hash chain would be
+  lost on every redeploy, making the tamper-evidence claim depend on never
+  deploying.
+- **The ledger survives a restart.** Verified with the volume mounted: after
+  `docker restart`, 41 records rehydrate with the chain intact and the **same
+  head hash**, and a new run continues the sequence `1..73` without a break. See
+  [ADR 0009](docs/decisions/0009-ledger-rehydrates-from-disk-on-start.md).
+- **One process, deliberately.** The orchestrator, approval machine and ledger are
+  in-process singletons. More than one worker would fork approval state and
+  duplicate ledger `seq` numbers. Horizontal scaling is a stated production
+  requirement, not a hidden one.
+- **`/api/health` probes the real app**, not a static file, and reports whether
+  the ledger is `writable`, `rehydrated_from_disk`, and whether any truncated
+  lines were `skipped_malformed_lines`.
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the *same*
+`bash scripts/verify.sh` gate as a developer does — one definition, two
+environments — then builds the image and drives the governance boundary inside
+the running container.
+
+---
+
 ## Testing
 
 ```
-150 passed  (backend: unit 64 · contract 36 · e2e 24 · red team 26)
+155 passed  (backend: unit 69 · contract 36 · integration 11 · e2e 24 · red team 26)
  41 passed  (frontend: 25 pure logic · 16 static accessibility guards)
  48 passed  (browser: 24 in real Chromium × 2 viewports)
 ```
+
+The backend markers **overlap** — the 11 integration cases are marked inside the
+e2e module, so they are counted by both. 155 is the suite total; summing the
+markers would double-count. `verify.sh` also runs `ruff` and `mypy` as gates, and
+a missing dev tool fails the run rather than being skipped: "lint passes" is only
+meaningful if lint actually ran.
 
 The static accessibility guards earned their place immediately: on first run they
 found that `.skip-link` was styled in CSS and `<main id="main">` existed, but

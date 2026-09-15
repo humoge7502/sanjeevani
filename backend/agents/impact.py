@@ -196,12 +196,20 @@ def compute_impact(
 
         var = ship.value_usd * (p_stockout * (1 - condemn) + condemn)
 
+        # The multi-line strings are parenthesised deliberately. Adjacent string
+        # literals concatenate implicitly, which means a missing comma between two
+        # entries would silently merge them instead of raising. The parentheses
+        # make the intended continuation explicit.
         reasons = [
             f"on disrupted lane {ship.lane_id}",
-            f"remaining corridor fraction {frac:.3f} of {scenario.transit_delay_days:g}d delay "
-            f"-> {delay:.2f}d",
-            f"outage gap = min(H={horizon:g}d, duration {scenario.duration_days:g}d "
-            f"+ delay {delay:.2f}d) = {disrupted_days:.2f}d",
+            (
+                f"remaining corridor fraction {frac:.3f} of "
+                f"{scenario.transit_delay_days:g}d delay -> {delay:.2f}d"
+            ),
+            (
+                f"outage gap = min(H={horizon:g}d, duration "
+                f"{scenario.duration_days:g}d + delay {delay:.2f}d) = {disrupted_days:.2f}d"
+            ),
             f"cover {sku.coverage_days:g}d -> shortfall {shortfall:.2f}d",
             f"p_stockout = 1 - exp(-{shortfall:.2f}/{recovery_days:g}) = {p_stockout:.4f}",
         ]
@@ -302,7 +310,9 @@ def compute_impact(
             "downstream_of_blocked": sorted(downstream),
             "upstream_of_blocked": sorted(upstream),
             "affected_nodes": affected_nodes,
-            "formula": "affected = nodes(lanes touching blocked) ∪ descendants(blocked)",
+            # The union symbol is deliberate: this string is rendered as the
+            # provenance of the affected-node set, and set union is what it is.
+            "formula": "affected = nodes(lanes touching blocked) ∪ descendants(blocked)",  # noqa: RUF001
         },
         "aggregation": {
             "total_consignment_value_usd": round(total_value, 2),

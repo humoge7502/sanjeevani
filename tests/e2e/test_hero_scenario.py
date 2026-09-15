@@ -17,8 +17,8 @@ pytestmark = pytest.mark.e2e
 
 def _full_run(orchestrator, actor="meera.iyer"):
     orchestrator.reset()
-    state = orchestrator.run()
-    state = orchestrator.decide(ApprovalDecision.APPROVE, actor, "Protect the biologic supply.")
+    orchestrator.run()
+    orchestrator.decide(ApprovalDecision.APPROVE, actor, "Protect the biologic supply.")
     return orchestrator.execute()
 
 

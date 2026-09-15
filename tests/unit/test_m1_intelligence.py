@@ -10,7 +10,6 @@ from backend.agents.pipeline import run_m1
 from backend.agents.sensing import classify, load_feed, sense
 from backend.agents.verification import generate_scenarios, verify
 
-
 # ---------------------------------------------------------------------------
 # Network seed integrity
 # ---------------------------------------------------------------------------
@@ -24,8 +23,104 @@ def test_network_has_twelve_nodes(network):
 @pytest.mark.unit
 def test_network_has_six_lanes_and_one_red_sea_exposure(network):
     assert len(network.lanes) == 6
-    exposed = [l.id for l in network.lanes.values() if l.red_sea_exposed]
+    exposed = [lane.id for lane in network.lanes.values() if lane.red_sea_exposed]
     assert exposed == ["LANE-MUM-BIO-EU"]
+
+
+# The snapshot is what `GET /api/network` returns and therefore what the browser's
+# network map renders. It had no test at all: a refactor renamed a local variable
+# and left ten references to the old name, and the whole suite still passed while
+# the endpoint would have raised NameError. These two tests exist so that cannot
+# happen again.
+
+SNAPSHOT_ENTITY_KEYS: dict[str, set[str]] = {
+    "nodes": {
+        "id",
+        "name",
+        "type",
+        "city",
+        "country",
+        "risk_score",
+        "temp_class",
+        "closed",
+        "detail",
+    },
+    "lanes": {
+        "id",
+        "name",
+        "origin",
+        "destination",
+        "path",
+        "mode",
+        "transit_days",
+        "cost_usd_per_pallet",
+        "temp_class",
+        "red_sea_exposed",
+        "direction",
+    },
+    "shipments": {
+        "id",
+        "sku_id",
+        "lane_id",
+        "current_node",
+        "destination",
+        "market",
+        "units",
+        "pallets",
+        "value_usd",
+        "temp_class",
+        "criticality",
+    },
+}
+
+
+@pytest.mark.unit
+def test_network_snapshot_has_every_key_the_map_renders(network):
+    """The frontend reads these keys positionally; a missing one breaks the map."""
+    snapshot = network.snapshot()
+
+    assert set(snapshot) >= {"meta", "nodes", "lanes", "shipments", "skus"}
+    assert snapshot["meta"]["node_count"] == 12
+    assert snapshot["meta"]["lane_count"] == 6
+
+    for collection, required in SNAPSHOT_ENTITY_KEYS.items():
+        rows = snapshot[collection]
+        assert rows, f"{collection} must not be empty"
+        for row in rows:
+            missing = required - set(row)
+            assert not missing, f"{collection} row {row.get('id')!r} is missing {sorted(missing)}"
+
+
+def _collect_dict_keys(value, path="", out=None):
+    """Walk a nested structure and assert every dict is JSON-serialisable."""
+    import json
+
+    if out is None:
+        out = []
+    if isinstance(value, dict):
+        out.append(path)
+        for key, child in value.items():
+            assert isinstance(key, str), f"non-string key at {path}: {key!r}"
+            _collect_dict_keys(child, f"{path}.{key}", out)
+    elif isinstance(value, (list, tuple)):
+        for idx, child in enumerate(value):
+            _collect_dict_keys(child, f"{path}[{idx}]", out)
+    else:
+        # Anything that is not a container must survive a JSON round-trip, or the
+        # map receives a value FastAPI cannot encode.
+        json.dumps(value)
+    return out
+
+
+@pytest.mark.unit
+def test_network_snapshot_is_json_serialisable(network):
+    """`/api/network` must encode without a custom serialiser."""
+    import json
+
+    snapshot = network.snapshot()
+    _collect_dict_keys(snapshot, "snapshot")
+    encoded = json.dumps(snapshot)
+    assert json.loads(encoded)["meta"]["node_count"] == 12
 
 
 @pytest.mark.unit
@@ -110,8 +205,8 @@ def test_stale_signal_cannot_escalate_on_its_own(network):
 
 @pytest.mark.unit
 def test_unknown_target_never_escalates(network):
-    from backend.config import scenario_clock
     from backend.agents.sensing import RawSignal
+    from backend.config import scenario_clock
 
     ghost = RawSignal(
         signal_id="SIG-GHOST",
@@ -134,8 +229,8 @@ def test_unknown_target_never_escalates(network):
 @pytest.mark.unit
 def test_sensing_never_parses_free_text_into_parameters(network):
     """Prompt-injection containment: the claim payload is the only source."""
-    from backend.config import scenario_clock
     from backend.agents.sensing import RawSignal
+    from backend.config import scenario_clock
 
     injected = RawSignal(
         signal_id="SIG-INJECT",
@@ -184,7 +279,6 @@ def test_measurement_rule_verifies_excursion_and_matches_contract_example():
 @pytest.mark.unit
 def test_iot_claim_is_rejected_when_the_trace_disagrees(network):
     """RULE-MEASURE must fail if the device trace does not reproduce the claim."""
-    from backend.config import scenario_clock
     from backend.agents.sensing import CandidateEvent
     from backend.agents.verification import _verify_iot_measurement
 
@@ -225,7 +319,6 @@ def test_dedup_collapses_only_within_a_source_class():
 
 @pytest.mark.unit
 def test_single_source_claim_is_rejected_not_verified(network):
-    from backend.config import scenario_clock
     from backend.agents.sensing import CandidateEvent
     from backend.agents.verification import _verify_cross_source
     from backend.config import Thresholds

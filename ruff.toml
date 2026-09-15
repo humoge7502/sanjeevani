@@ -1,0 +1,71 @@
+# Ruff configuration — the project's Python linter.
+#
+#   python -m ruff check .          # report
+#   python -m ruff check . --fix    # apply the safe fixes
+#
+# The rule set is chosen to match the suppressions the code already carries. The
+# source is annotated with `# noqa: SLF001` (deliberate access to a private
+# member), `# noqa: BLE001` (a deliberate broad catch) and `# noqa: E402`
+# (imports after a path setup). Those directives were written for a config that
+# did not exist, so ruff reported all of them as unused. Enabling the rules makes
+# each suppression *mean* something and turns it into documentation, which is
+# what the author intended.
+
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # import sorting
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear (real bug patterns)
+  "C4",   # comprehensions
+  "SIM",  # simplify
+  "PIE",  # misc lints
+  "RUF",  # ruff-specific
+  "S",    # flake8-bandit (security)
+  "SLF",  # flake8-self (private member access must be deliberate)
+  "ISC",  # implicit string concatenation
+  "RET",  # return consistency
+  "ARG",  # unused arguments
+  "BLE",  # blind except (deliberate, and suppressed inline with a reason)
+]
+
+ignore = [
+  # `(str, Enum)` vs `StrEnum` is not a cosmetic difference: with StrEnum,
+  # `str(member)` returns the value, whereas the mixin returns "Severity.HIGH".
+  # The enums here are interpolated into ledger detail and error text, so
+  # switching would silently change recorded audit strings. Not worth it.
+  "UP042",
+  # Formatter territory, not correctness. The project is hand-formatted and
+  # consistent; enforcing a different whitespace style would churn the diff
+  # without changing behaviour.
+  "E1",
+  "E2",
+  "E3",
+  "W1",
+  "W2",
+  "W3",
+  "E501",
+]
+
+[lint.per-file-ignores]
+# Tests legitimately use assert, reach into private state to simulate tampering,
+# and construct deliberately malformed input. Those are the point of the suite.
+"tests/**" = ["S101", "SLF001", "ARG001", "ARG002", "S105", "S106", "S108"]
+# These two implement interfaces whose signatures are fixed by the protocol they
+# satisfy (the M2 plan provider, and the SAP transport seam). An argument they do
+# not need is still part of the contract they must match.
+"backend/m2/recovery_plan_provider.py" = ["ARG002"]
+"backend/sap/execution.py" = ["ARG002", "ARG001"]
+# Scripts are operator-facing CLIs: printing to stdout is their interface.
+"scripts/**" = ["S101", "T201", "E402"]
+# The governance state machine owns its transition method; the module that
+# implements it is the one place allowed to call it privately.
+"backend/governance/approval.py" = ["SLF001"]
+
+[lint.isort]
+known-first-party = ["backend", "tests", "scripts"]

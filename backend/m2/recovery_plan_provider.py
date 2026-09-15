@@ -19,7 +19,7 @@ looks wrong here, the bug is M2's, and this module will say so.
 from __future__ import annotations
 
 import os
-from typing import Protocol
+from typing import ClassVar, Literal, Protocol
 
 from backend.config import m2_fixture
 from backend.contracts import RecoveryPlan
@@ -50,7 +50,10 @@ class RecoveryPlanProvider(Protocol):
 class FixtureRecoveryPlanProvider:
     """Deterministic, hand-set stand-in for M2. NOT an optimizer."""
 
-    SOURCE = "fixture"
+    # Annotated as a Literal rather than left as `str`, so the value that lands
+    # in the RecoveryPlan contract is checked against the contract's own union
+    # instead of being coerced at runtime.
+    SOURCE: ClassVar[Literal["optimizer", "fixture"]] = "fixture"
 
     def __init__(self) -> None:
         self._doc = m2_fixture()

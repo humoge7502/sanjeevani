@@ -170,7 +170,7 @@ def reconcile(
                 "No outcome feedback has been received for this plan yet. "
                 "Reconciliation is pending; nothing is assumed."
             ),
-            event_id=(event_ids or [None])[0],
+            event_id=event_ids[0] if event_ids else None,
             calibration_signals=[],
             reconciliation_status="PENDING",
             retraining_performed=False,
@@ -219,7 +219,7 @@ def reconcile(
         actual=actual,
         delta={k: v["absolute_delta"] for k, v in delta.items()},
         learning_note=note,
-        event_id=(event_ids or [None])[0],
+        event_id=event_ids[0] if event_ids else None,
         calibration_signals=signals,
         reconciliation_status="RECONCILED",
         retraining_performed=False,

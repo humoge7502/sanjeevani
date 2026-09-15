@@ -15,8 +15,9 @@ Design decisions worth defending:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from backend.config import policies as policies_cfg
 from backend.config import settings
@@ -341,9 +342,7 @@ def _rule_trade_corridor(plan: RecoveryPlan, p: dict, ctx: dict) -> CheckResult:
         lane = ctx["network"].lanes.get(lane_id)
         if not lane:
             continue
-        if lane.id in restricted:
-            touched.append(lane.id)
-        elif red_sea and lane.red_sea_exposed:
+        if lane.id in restricted or (red_sea and lane.red_sea_exposed):
             touched.append(lane.id)
     ok = not touched
     return _mk(
@@ -396,8 +395,13 @@ def _rule_supplier_risk(plan: RecoveryPlan, p: dict, ctx: dict) -> CheckResult:
     )
 
 
-def _rule_approval_invariant(plan: RecoveryPlan, p: dict, ctx: dict) -> CheckResult:
-    """The invariant rule. It restates what the API layer already enforces."""
+def _rule_approval_invariant(_plan: RecoveryPlan, p: dict, ctx: dict) -> CheckResult:
+    """The invariant rule. It restates what the API layer already enforces.
+
+    The signature matches every other evaluator (the dispatch table calls them
+    uniformly), but this rule reads only the params and the context — it cares
+    about the tier and the approver role, not about the plan's contents.
+    """
     order = ["L1", "L2", "L3", "L4"]
     consequential = order.index(ctx["risk_tier"]) >= order.index(p["consequential_from_tier"])
     needs_role = bool(p["require_approval_role"])

@@ -203,7 +203,7 @@ def approval_request(plan: RecoveryPlan, record: dict[str, Any], impact: dict[st
             "affected_products": impact.get("affected_products", []),
             "horizon_days": impact.get("horizon_days"),
         },
-        "what_will_happen": _execution_preview(plan),
+        "what_will_happen": _execution_preview(),
         "withhold": (
             "Execution is server-enforced. The UI cannot execute this plan; only the "
             "backend approval state machine can, and only from the APPROVED state."
@@ -211,8 +211,13 @@ def approval_request(plan: RecoveryPlan, record: dict[str, Any], impact: dict[st
     }
 
 
-def _execution_preview(plan: RecoveryPlan) -> list[dict[str, Any]]:
-    """Plain-language description of the SAP-shaped calls that will follow."""
+def _execution_preview() -> list[dict[str, Any]]:
+    """Plain-language description of the SAP-shaped calls that will follow.
+
+    This text is fixed: the three posts are the same three posts for every plan.
+    It previously took a `plan` argument it never read, which made it look like
+    the preview varied by plan when it does not.
+    """
     return [
         {
             "system": "IBP",

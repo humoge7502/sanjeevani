@@ -1,4 +1,22 @@
+# Development and verification tooling. Not needed to RUN the demo, only to
+# verify it.
+#
+#   pip install -r requirements-dev.txt
+#   bash scripts/verify.sh
+
 -r requirements.txt
 
 pytest==9.1.1
 httpx==0.28.1
+
+# Lint and typecheck. `scripts/verify.sh` runs both, so a missing tool is a
+# verification failure rather than a silent skip.
+ruff==0.16.3
+mypy==2.3.1
+
+# Type stubs for the two third-party libraries that ship none. With these
+# installed, mypy.ini does NOT need `ignore_missing_imports` overrides for
+# `yaml` or `networkx` -- and pyyaml/networkx calls are actually typechecked
+# instead of being silenced.
+types-PyYAML==6.0.12.20260906
+types-networkx==3.6.1.20260911

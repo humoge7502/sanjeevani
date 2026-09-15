@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from functools import lru_cache
+from itertools import pairwise
 from typing import Any
 
 from backend.config import DATA_DIR, settings
@@ -82,7 +83,7 @@ def _minutes_above_limit(samples: list[TelemetrySample], limit: float) -> float:
     the figure does not depend on the sampling cadence.
     """
     total = 0.0
-    for a, b in zip(samples, samples[1:]):
+    for a, b in pairwise(samples):
         ea, eb = a.temp_c - limit, b.temp_c - limit
         dt = b.t_offset_minutes - a.t_offset_minutes
         if ea <= 0 and eb <= 0:
@@ -99,7 +100,7 @@ def _minutes_above_limit(samples: list[TelemetrySample], limit: float) -> float:
 def _degree_minutes(samples: list[TelemetrySample], limit: float) -> float:
     """Trapezoidal integral of the positive excess over the limit."""
     total = 0.0
-    for a, b in zip(samples, samples[1:]):
+    for a, b in pairwise(samples):
         ea = max(a.temp_c - limit, 0.0)
         eb = max(b.temp_c - limit, 0.0)
         dt = b.t_offset_minutes - a.t_offset_minutes

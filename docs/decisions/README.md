@@ -17,6 +17,7 @@ months from now, "why is there no charting library?" is answerable by reading
 | [0006](0006-offline-first-seeded-data.md) | Offline-first with file-based seed data; no external service load-bearing | Accepted |
 | [0007](0007-browser-tests-are-the-behaviour-oracle.md) | Real Chromium is the behaviour and accessibility oracle | Accepted |
 | [0008](0008-text-ramp-anchored-to-measured-contrast.md) | The text ramp is anchored to a measured contrast floor, not to taste | Accepted, with a compressed ramp |
+| [0009](0009-ledger-rehydrates-from-disk-on-start.md) | The ledger rehydrates from disk on start, and `reset()` wins over it | Accepted, single-writer only |
 
 ## Format
 

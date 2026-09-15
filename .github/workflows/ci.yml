@@ -1,0 +1,156 @@
+name: CI
+
+# Runs on every push and pull request.
+#
+# The gate is `bash scripts/verify.sh` -- the SAME command a developer runs
+# locally. That is deliberate: a CI pipeline that re-implements the checks in its
+# own YAML drifts away from the local gate within a few commits, and then "it
+# passed locally" stops meaning anything. One definition, two environments.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref. A push that is immediately followed by
+# another should not queue up a redundant five-minute job.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (tests, lint, types, browser, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies (dev tooling included)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        # `ci` not `install`: reproducible from the lockfile, and it fails loudly
+        # if package.json and package-lock.json disagree.
+        run: npm ci
+
+      - name: Install Chromium for the browser suite
+        working-directory: frontend
+        # --with-deps pulls the shared libraries Chromium needs on a bare runner.
+        # verify.sh skips the browser step when no browser cache exists, so
+        # without this the most valuable tests would silently not run.
+        run: npx playwright install --with-deps chromium
+
+      # The single gate. Fails the job if any of the nine checks fail.
+      - name: Run verification gate
+        run: bash scripts/verify.sh
+
+      - name: Upload browser test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  docker:
+    name: Build deployable image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Proves the image builds -- which includes `tsc -b`, so a type error fails
+      # here rather than in a deploy.
+      - name: Build image
+        run: docker build -t sanjeevani:ci .
+
+      - name: Boot it and assert it becomes healthy
+        run: |
+          set -euo pipefail
+          docker run -d --name sj -p 8787:8787 sanjeevani:ci
+
+          # Poll the real health endpoint rather than sleeping a fixed amount.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/api/health >/dev/null 2>&1; then
+              echo "healthy after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::container never became healthy"
+              docker logs sj
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # The UI must be served by the API, or the single-unit deployment is a
+          # claim rather than a fact.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/)" = "200"
+          echo "SPA served OK"
+
+          # Drive the real loop in the container, so the governance boundary is
+          # asserted where it will actually run -- not only in the test suite.
+          curl -fsS -X POST http://127.0.0.1:8787/api/demo/run >/dev/null
+          echo "run OK"
+
+          # Executing an APPROVAL_REQUIRED plan must be refused with 409.
+          # NB: before any run the API correctly returns 404 NO_ACTIVE_PLAN, not
+          # 409 -- which is why the run above is not optional.
+          post() { curl -s -o /dev/null -w '%{http_code}' -X POST "$1"; }
+
+          code=$(post http://127.0.0.1:8787/api/plans/PLAN-001/execute)
+          test "$code" = "409" || { echo "::error::expected 409 before approval, got $code"; exit 1; }
+          echo "ungoverned execution refused (409) OK"
+
+          # An actor without the required role must be refused with 403.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"actor_id":"mallory","rationale":"unauthorised"}' \
+            http://127.0.0.1:8787/api/plans/PLAN-001/approve)
+          test "$code" = "403" || { echo "::error::expected 403 for unauthorised approver, got $code"; exit 1; }
+          echo "unauthorised approver refused (403) OK"
+
+          # The authorised approver succeeds, and then execution is permitted.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"actor_id":"meera.iyer","rationale":"GDP-safe, within budget"}' \
+            http://127.0.0.1:8787/api/plans/PLAN-001/approve)
+          test "$code" = "200" || { echo "::error::expected 200 for authorised approver, got $code"; exit 1; }
+
+          code=$(post http://127.0.0.1:8787/api/plans/PLAN-001/execute)
+          test "$code" = "200" || { echo "::error::expected 200 after approval, got $code"; exit 1; }
+          echo "approve -> execute OK"
+
+          # Re-executing must be idempotent: no new ledger records.
+          before=$(curl -s http://127.0.0.1:8787/api/health | python3 -c 'import json,sys; print(json.load(sys.stdin)["ledger"]["records"])')
+          post http://127.0.0.1:8787/api/plans/PLAN-001/execute >/dev/null
+          after=$(curl -s http://127.0.0.1:8787/api/health | python3 -c 'import json,sys; print(json.load(sys.stdin)["ledger"]["records"])')
+          test "$before" = "$after" || { echo "::error::re-execution appended records ($before -> $after)"; exit 1; }
+          echo "idempotent re-execution OK ($after records)"
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs sj || true

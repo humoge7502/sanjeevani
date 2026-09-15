@@ -21,9 +21,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from backend.contracts import ApprovalDecision  # noqa: E402
-from backend.governance.approval import GovernanceError  # noqa: E402
-from backend.orchestrator import orchestrator  # noqa: E402
+from backend.contracts import ApprovalDecision
+from backend.governance.approval import GovernanceError
+from backend.orchestrator import orchestrator
 
 RULE = "─" * 78
 

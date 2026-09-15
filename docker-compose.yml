@@ -1,0 +1,57 @@
+# SANJEEVANI — one-command deployment.
+#
+#   docker compose up --build
+#   -> UI and API on http://localhost:8787
+#
+#   docker compose down            # stop, keep the ledger
+#   docker compose down -v         # stop and delete the ledger volume
+#
+# This exists because the image is a single deployable unit: the API serves the
+# built command center, so there is no separate web server and no CORS to
+# configure. See docs/deployment.md.
+
+services:
+  sanjeevani:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sanjeevani:local
+    container_name: sanjeevani
+    ports:
+      # Host port is overridable so a second instance can run beside this one:
+      #   SANJEEVANI_HOST_PORT=9099 docker compose up
+      - "${SANJEEVANI_HOST_PORT:-8787}:8787"
+    environment:
+      # Bind all interfaces INSIDE the container. The config default is
+      # 127.0.0.1, which is right for a laptop and unreachable from outside a
+      # container -- this is the most common way this image would fail to start
+      # usefully.
+      SANJEEVANI_API_HOST: "0.0.0.0"
+      SANJEEVANI_API_PORT: "8787"
+      SANJEEVANI_RUNTIME_DIR: "/app/runtime"
+      # Explicitly mark the demo as offline. It is offline-first regardless, but
+      # this states the intent so no optional enrichment is attempted.
+      SANJEEVANI_OFFLINE: "true"
+      # M2 boundary: consume the labelled deterministic fixture, not an optimizer.
+      SANJEEVANI_PLAN_PROVIDER: "fixture"
+    volumes:
+      # The audit ledger is the only mutable state. Without a volume the hash
+      # chain is lost on every recreate, which would make the tamper-evidence
+      # claim depend on never redeploying.
+      - sanjeevani-ledger:/app/runtime
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:8787/api/health", timeout=4).status == 200 else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sanjeevani-ledger:

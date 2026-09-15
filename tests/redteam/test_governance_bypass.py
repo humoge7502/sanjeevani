@@ -181,7 +181,7 @@ def test_a08c_approved_state_is_only_entered_from_the_decide_path():
         for idx, line in enumerate(lines):
             stripped = line.strip()
             # Only transition CALLS count; skip the definition and comments.
-            if stripped.startswith("#") or stripped.startswith("def "):
+            if stripped.startswith(("#", "def ")):
                 continue
             if "_transition(" not in stripped:
                 continue
@@ -207,10 +207,10 @@ def test_a08b_no_state_can_reach_executing_except_from_approved():
 
 def test_a09_forged_approval_fields_in_a_request_are_ignored(orchestrator, run_state):
     """The API's decision endpoint cannot be trusted with `approved: true`."""
-    from backend.api.app import DecisionRequest
-
     # FastAPI's own schema rejects the extra field outright.
     from pydantic import ValidationError
+
+    from backend.api.app import DecisionRequest
 
     with pytest.raises(ValidationError):
         DecisionRequest(actor_id="attacker", approved=True, risk_tier="L1")
@@ -231,10 +231,10 @@ def test_a09_forged_approval_fields_in_a_request_are_ignored(orchestrator, run_s
 
 
 def test_a10_physically_impossible_plan_fails_policy(network):
-    from backend.governance import policy_engine
-
     # Pydantic rejects out-of-range values at the contract boundary...
     from pydantic import ValidationError
+
+    from backend.governance import policy_engine
 
     with pytest.raises(ValidationError):
         RecoveryPlan(
@@ -288,7 +288,7 @@ def test_a12_ledger_tampering_is_detected(orchestrator, run_state):
     from backend.audit.ledger import ledger
 
     assert ledger.verify_chain()["intact"] is True
-    ledger._records[0].detail["injected"] = "attacker was here"  # noqa: SLF001
+    ledger._records[0].detail["injected"] = "attacker was here"
     report = ledger.verify_chain()
     assert report["intact"] is False
     assert report["issues"]

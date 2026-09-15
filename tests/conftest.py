@@ -25,7 +25,6 @@ def _clean_state():
     from backend.config import reload_config
     from backend.governance.approval import registry
     from backend.graph.network import Network
-    from backend.orchestrator import orchestrator
     from backend.sap.execution import orchestrator as exec_orchestrator
 
     def wipe() -> None:

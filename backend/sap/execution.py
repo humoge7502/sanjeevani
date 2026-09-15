@@ -25,13 +25,14 @@ request returns the ORIGINAL receipt rather than posting twice.
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from backend.config import isoformat, scenario_clock
 from backend.contracts import ExecutionReceipt, ExecutionStatus, RecoveryPlan
 from backend.governance.approval import ApprovalState, GovernanceError, PlanGovernance, can_execute
-from backend.sap.mocks import SapMockError, SapSurface, deterministic_id, surface as default_surface
+from backend.sap.mocks import SapMockError, SapSurface, deterministic_id
+from backend.sap.mocks import surface as default_surface
 
 
 @dataclass
@@ -90,14 +91,13 @@ class ExecutionOrchestrator:
         with self._lock:
             existing = self._receipts.get(plan.plan_id)
             if existing is not None:
-                replayed = ExecutionOutcome(
+                return ExecutionOutcome(
                     receipt=existing.receipt,
                     actions=existing.actions,
                     compensating_actions=existing.compensating_actions,
                     failure=existing.failure,
                     replayed=True,
                 )
-                return replayed
 
         gov._transition(  # noqa: SLF001 - the orchestrator drives the machine
             ApprovalState.EXECUTING, "A5_EXECUTION", "system", "Execution started"

@@ -129,7 +129,7 @@ class Network:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def load(cls) -> "Network":
+    def load(cls) -> Network:
         """Load and cache the seeded network."""
         nodes_doc = cls._load_yaml("network/nodes.yaml")
         lanes_doc = cls._load_yaml("network/lanes.yaml")
@@ -150,21 +150,21 @@ class Network:
             for n in nodes_doc["nodes"]
         }
         lanes = {
-            l["id"]: Lane(
-                id=l["id"],
-                name=l["name"],
-                origin=l["origin"],
-                destination=l["destination"],
-                waypoints=tuple(l.get("waypoints") or ()),
-                mode=l["mode"],
-                transit_days=float(l["transit_days"]),
-                cost_usd_per_pallet=float(l["cost_usd_per_pallet"]),
-                capacity_pallets=int(l["capacity_pallets"]),
-                temp_class=l["temp_class"],
-                red_sea_exposed=bool(l.get("red_sea_exposed", False)),
-                direction=l.get("direction", "outbound"),
+            lane["id"]: Lane(
+                id=lane["id"],
+                name=lane["name"],
+                origin=lane["origin"],
+                destination=lane["destination"],
+                waypoints=tuple(lane.get("waypoints") or ()),
+                mode=lane["mode"],
+                transit_days=float(lane["transit_days"]),
+                cost_usd_per_pallet=float(lane["cost_usd_per_pallet"]),
+                capacity_pallets=int(lane["capacity_pallets"]),
+                temp_class=lane["temp_class"],
+                red_sea_exposed=bool(lane.get("red_sea_exposed", False)),
+                direction=lane.get("direction", "outbound"),
             )
-            for l in lanes_doc["lanes"]
+            for lane in lanes_doc["lanes"]
         }
         skus = {
             s["id"]: Sku(
@@ -223,7 +223,9 @@ class Network:
         return cls(nodes, lanes, skus, shipments, meta)
 
     def _build_graph(self) -> nx.DiGraph:
-        g = nx.DiGraph()
+        # Annotated explicitly: the networkx stubs type DiGraph generically, and
+        # an empty constructor gives mypy nothing to infer from.
+        g: nx.DiGraph = nx.DiGraph()
         for node in self.nodes.values():
             g.add_node(
                 node.id,
@@ -251,10 +253,10 @@ class Network:
 
     # ------------------------------------------------------------------ query
     def lanes_touching_node(self, node_id: str) -> list[Lane]:
-        return [l for l in self.lanes.values() if node_id in l.path]
+        return [lane for lane in self.lanes.values() if node_id in lane.path]
 
     def lanes_touching_edge(self, a: str, b: str) -> list[Lane]:
-        return [l for l in self.lanes.values() if (a, b) in l.edges]
+        return [lane for lane in self.lanes.values() if (a, b) in lane.edges]
 
     def shipments_on_lane(self, lane_id: str) -> list[Shipment]:
         return [s for s in self.shipments.values() if s.lane_id == lane_id]
@@ -278,7 +280,7 @@ class Network:
         return reachable
 
     def red_sea_lanes(self) -> list[Lane]:
-        return [l for l in self.lanes.values() if l.red_sea_exposed]
+        return [lane for lane in self.lanes.values() if lane.red_sea_exposed]
 
     def snapshot(self) -> dict[str, Any]:
         """Serialisable view for the frontend network map."""
@@ -300,19 +302,19 @@ class Network:
             ],
             "lanes": [
                 {
-                    "id": l.id,
-                    "name": l.name,
-                    "origin": l.origin,
-                    "destination": l.destination,
-                    "path": list(l.path),
-                    "mode": l.mode,
-                    "transit_days": l.transit_days,
-                    "cost_usd_per_pallet": l.cost_usd_per_pallet,
-                    "temp_class": l.temp_class,
-                    "red_sea_exposed": l.red_sea_exposed,
-                    "direction": l.direction,
+                    "id": lane.id,
+                    "name": lane.name,
+                    "origin": lane.origin,
+                    "destination": lane.destination,
+                    "path": list(lane.path),
+                    "mode": lane.mode,
+                    "transit_days": lane.transit_days,
+                    "cost_usd_per_pallet": lane.cost_usd_per_pallet,
+                    "temp_class": lane.temp_class,
+                    "red_sea_exposed": lane.red_sea_exposed,
+                    "direction": lane.direction,
                 }
-                for l in self.lanes.values()
+                for lane in self.lanes.values()
             ],
             "shipments": [
                 {

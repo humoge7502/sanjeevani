@@ -14,15 +14,17 @@ not execute?" (prompt S32).
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.ledger import ledger
-from backend.config import settings
+from backend.config import FRONTEND_DIST, cors_origins, settings
 from backend.contracts import CONTRACT_VERSION, ApprovalDecision
 from backend.governance import policy_engine
 from backend.governance.approval import (
@@ -47,11 +49,58 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings()["api"]["cors_origins"],
+    allow_origins=cors_origins(),
+    # No cookie or session auth exists, and `allow_credentials=True` combined with
+    # a wildcard origin is the classic CORS misconfiguration. This product has no
+    # credentials to send, so the safer value is also the correct one.
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+def mount_frontend(application: FastAPI, dist: Path = FRONTEND_DIST) -> bool:
+    """Serve the built command center from the API, if it has been built.
+
+    This is what makes the project one deployable unit. Vite's dev server is
+    excellent for development and wrong for production: it is a development
+    server with no process manager, and the browser would need a second origin.
+
+    Mounted only when the build exists, so the development workflow (API here,
+    Vite there, proxy between) is untouched. Returns whether it mounted.
+
+    Routing note: the static mount is registered at "/" and therefore must come
+    AFTER every /api route. FastAPI matches in registration order, so mounting
+    first would swallow the API. Hence this is called once, at the bottom.
+    """
+    index = dist / "index.html"
+    if not index.is_file():
+        logger.info(
+            "frontend build not found at %s; API-only mode (run the Vite dev server)",
+            dist,
+        )
+        return False
+
+    assets = dist / "assets"
+    if assets.is_dir():
+        application.mount("/assets", StaticFiles(directory=assets), name="assets")
+
+    @application.get("/", include_in_schema=False)
+    def _index() -> FileResponse:
+        return FileResponse(index)
+
+    # Anything that is not an API path and not a real file is a client-side
+    # route. The command center is a single scrolling page today, but a 404 on a
+    # deep link is the kind of thing that only shows up on stage.
+    @application.get("/{path:path}", include_in_schema=False)
+    def _spa(path: str) -> FileResponse:
+        candidate = dist / path
+        if path and candidate.is_file() and dist in candidate.resolve().parents:
+            return FileResponse(candidate)
+        return FileResponse(index)
+
+    logger.info("serving the command center from %s", dist)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +172,12 @@ class DecisionRequest(BaseModel):
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
+    """Liveness + readiness in one payload.
+
+    Deliberately returns 200 whenever the process can serve a request. It reports
+    *state* (`offline`, `clock_frozen`) rather than judging it, because a frozen
+    clock is correct here and must not fail a container health probe.
+    """
     return {
         "status": "ok",
         "contract_version": CONTRACT_VERSION,
@@ -130,6 +185,10 @@ def health() -> dict[str, Any]:
         "deterministic_seed": settings()["runtime"]["deterministic_seed"],
         "clock_frozen": bool(settings()["runtime"]["freeze_clock"]),
         "llm_enabled": bool(settings()["runtime"]["llm_enabled"]),
+        # Readiness detail for an orchestrator: is the ledger writable, and is
+        # there a UI to serve? Both are silent failure modes otherwise.
+        "frontend_built": (FRONTEND_DIST / "index.html").is_file(),
+        "ledger": ledger.health(),
     }
 
 
@@ -157,6 +216,18 @@ def contracts() -> dict[str, Any]:
         RecoveryPlan,
     )
 
+    # Annotated explicitly: without it the dict literal is inferred as a union of
+    # the concrete model metaclasses, and the type checker cannot see
+    # `model_json_schema` on the union even though every member has it.
+    contract_models: dict[str, type[BaseModel]] = {
+        "Event": Event,
+        "Impact": Impact,
+        "RecoveryPlan": RecoveryPlan,
+        "Approval": Approval,
+        "ExecutionReceipt": ExecutionReceipt,
+        "Outcome": Outcome,
+    }
+
     return {
         "contract_version": CONTRACT_VERSION,
         "change_protocol": (
@@ -164,15 +235,7 @@ def contracts() -> dict[str, Any]:
             "contract tests. See docs/contracts.md."
         ),
         "contracts": {
-            name: model.model_json_schema()
-            for name, model in {
-                "Event": Event,
-                "Impact": Impact,
-                "RecoveryPlan": RecoveryPlan,
-                "Approval": Approval,
-                "ExecutionReceipt": ExecutionReceipt,
-                "Outcome": Outcome,
-            }.items()
+            name: model.model_json_schema() for name, model in contract_models.items()
         },
     }
 
@@ -329,3 +392,10 @@ def _assert_active_plan(plan_id: str) -> None:
             f"Plan {plan_id} is not the active plan ({active}).",
             {"active_plan_id": active},
         )
+
+
+# ---------------------------------------------------------------------------
+# Static frontend (must be LAST: it registers a catch-all route)
+# ---------------------------------------------------------------------------
+
+serve_frontend = mount_frontend(app)

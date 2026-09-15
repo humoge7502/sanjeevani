@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.audit.ledger import STAGE_SEQUENCE, DecisionLedger
-from backend.contracts import ApprovalDecision, RecoveryPlan
-from backend.contracts.shared import ExecutionStatus
+from backend.audit.ledger import DecisionLedger
+from backend.contracts import RecoveryPlan
 from backend.governance import policy_engine
 from backend.governance.approval import (
     ALLOWED,
@@ -22,17 +21,17 @@ from backend.sap.mocks import AribaMock, IbpMock, SapMockError, TmMock
 
 
 def _plan(**overrides) -> RecoveryPlan:
-    base = dict(
-        plan_id="PLAN-TEST",
-        strategy="REROUTE_MUMBAI_AIR",
-        cost=184000.0,
-        service_level=0.965,
-        resilience_score=0.81,
-        temperature_risk=0.22,
-        recovery_time_hours=18.0,
-        impacted_skus=["BIO-002"],
-        impacted_lanes=["LANE-MUM-BIO-EU"],
-    )
+    base = {
+        "plan_id": "PLAN-TEST",
+        "strategy": "REROUTE_MUMBAI_AIR",
+        "cost": 184000.0,
+        "service_level": 0.965,
+        "resilience_score": 0.81,
+        "temperature_risk": 0.22,
+        "recovery_time_hours": 18.0,
+        "impacted_skus": ["BIO-002"],
+        "impacted_lanes": ["LANE-MUM-BIO-EU"],
+    }
     base.update(overrides)
     return RecoveryPlan(**base)
 
@@ -351,7 +350,7 @@ def test_ledger_detects_tampering_with_a_record_body():
     ledger.append("SIGNAL_RECEIVED", "NEWS", "ingest")
     ledger.append("EVENT_VERIFIED", "A2", "verify")
     # Simulate an out-of-band edit to the stored record.
-    ledger._records[0].detail["tampered"] = True  # noqa: SLF001
+    ledger._records[0].detail["tampered"] = True
     report = ledger.verify_chain()
     assert report["intact"] is False
     assert any(i["issue"] == "hash_mismatch" for i in report["issues"])
@@ -361,6 +360,79 @@ def test_ledger_detects_tampering_with_a_record_body():
 def test_ledger_declares_its_own_limitations():
     report = DecisionLedger(path=None).verify_chain()
     assert "Does NOT protect" in report["scope"]
+
+
+@pytest.mark.unit
+def test_ledger_rehydrates_an_existing_file_and_keeps_the_chain_continuous(tmp_path):
+    """A restart must not silently restart the chain.
+
+    Regression test for a real deployment defect: the singleton was empty on
+    process start while the file on the mounted volume still held a chain, so the
+    next append chained from GENESIS and produced a file with two disconnected
+    chains -- in a ledger whose only claim is continuity.
+    """
+    path = tmp_path / "audit_ledger.jsonl"
+
+    first = DecisionLedger(path=path)
+    first.reset(write_file=True)
+    first.append("SIGNAL_RECEIVED", "NEWS", "ingest")
+    first.append("EVENT_VERIFIED", "A2", "verify")
+    head_before = first.records()[-1]["hash"]
+
+    # Simulate a restart: a brand-new instance over the same persisted file.
+    restarted = DecisionLedger(path=path)
+    assert len(restarted) == 2, "existing records were not rehydrated"
+    assert restarted.health()["rehydrated_from_disk"] is True
+
+    restarted.append("SCENARIO_GENERATED", "A2", "scenario")
+    records = restarted.records()
+
+    assert [r["seq"] for r in records] == [1, 2, 3], "sequence did not continue"
+    assert records[2]["prev_hash"] == head_before, "chain head was not carried over"
+    assert restarted.verify_chain()["intact"] is True
+
+
+@pytest.mark.unit
+def test_reset_establishes_the_baseline_and_blocks_rehydration(tmp_path):
+    """reset() must win over lazy loading, or it would read the old file back."""
+    path = tmp_path / "audit_ledger.jsonl"
+
+    seeded = DecisionLedger(path=path)
+    seeded.reset(write_file=True)
+    seeded.append("SIGNAL_RECEIVED", "NEWS", "ingest")
+
+    fresh = DecisionLedger(path=path)
+    fresh.reset(write_file=True)
+    fresh.append("SIGNAL_RECEIVED", "NEWS", "ingest")
+
+    records = fresh.records()
+    assert len(records) == 1
+    assert records[0]["seq"] == 1
+    assert records[0]["prev_hash"] == "GENESIS"
+
+
+@pytest.mark.unit
+def test_truncated_trailing_line_is_skipped_not_fatal(tmp_path):
+    """A process killed mid-append must not prevent the next one from starting."""
+    path = tmp_path / "audit_ledger.jsonl"
+
+    seeded = DecisionLedger(path=path)
+    seeded.reset(write_file=True)
+    seeded.append("SIGNAL_RECEIVED", "NEWS", "ingest")
+
+    # Append a half-written record, exactly as a hard kill would leave it.
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write('{"seq": 2, "stage": "EVENT_VERI')
+
+    restarted = DecisionLedger(path=path)
+    health = restarted.health()
+    assert health["records"] == 1, "the intact prefix should still load"
+    assert health["skipped_malformed_lines"] == 1, "the partial line should be reported"
+
+    # And the ledger stays usable afterwards.
+    restarted.append("EVENT_VERIFIED", "A2", "verify")
+    assert [r["seq"] for r in restarted.records()] == [1, 2]
+    assert restarted.verify_chain()["intact"] is True
 
 
 # ---------------------------------------------------------------------------

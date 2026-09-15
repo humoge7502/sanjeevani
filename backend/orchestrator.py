@@ -23,7 +23,6 @@ from backend.agents.pipeline import M1Result, m1_snapshot, run_m1
 from backend.audit.ledger import STAGE_SEQUENCE, ledger
 from backend.config import (
     isoformat,
-    m2_fixture,
     reload_config,
     scenario_clock,
     scenarios_config,
@@ -107,7 +106,11 @@ class DemoOrchestrator:
             self._state = RunState(
                 run_id="RUN-HERO-001", started_at=isoformat(scenario_clock())
             )
-            settings_doc = settings()
+            # Load and validate the config before any work starts. This is a
+            # deliberate fail-fast: a malformed settings file should abort the
+            # run immediately, not halfway through the loop with a half-written
+            # ledger. The return value is intentionally unused.
+            settings()
 
             self._record_signals()
 

@@ -21,11 +21,14 @@ Three properties every mock here must have, because the demo depends on them:
 from __future__ import annotations
 
 import hashlib
+import logging
 import threading
 from dataclasses import dataclass, field
 from typing import Any
 
 from backend.config import isoformat, scenario_clock
+
+logger = logging.getLogger("sanjeevani.sap.mocks")
 
 
 class SapMockError(Exception):
@@ -292,8 +295,14 @@ class AribaMock(BaseMock):
             node = Network.load().nodes.get(supplier_id)
             if node is not None:
                 return round(float(node.risk_score), 4), "network_model"
-        except Exception:  # noqa: BLE001 - the mock must never hard-fail on a lookup
-            pass
+        except Exception as exc:  # noqa: BLE001 - the mock must never hard-fail on a lookup
+            # Falling back is the correct behaviour for a mock, but swallowing
+            # the reason silently would hide the seeded data going unreadable.
+            logger.warning(
+                "supplier risk lookup failed for %s, using derived fallback: %r",
+                supplier_id,
+                exc,
+            )
         digest = hashlib.sha256(supplier_id.encode("utf-8")).hexdigest()
         return round(int(digest[:4], 16) / 0xFFFF, 4), "derived_fallback"
 
