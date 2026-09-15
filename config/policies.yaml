@@ -1,0 +1,153 @@
+# SANJEEVANI policy rulebook (M3 / A5).
+#
+# Every rule carries a `provenance` label so the UI never over-claims:
+#   configured_policy      -> a real, editable control this prototype enforces
+#   simulated_rule         -> stands in for a commodity/party data check
+#   illustrative_check     -> GDP-style constraint, illustrative not certified
+#   production_requirement -> a real obligation the MVP does NOT certify
+#
+# Outcomes: FAIL blocks execution. WARN requires human acknowledgement only.
+# Nothing here is legal or regulatory advice.
+
+meta:
+  rulebook_version: "1.0.0"
+  review_status: "prototype - not a certified compliance product"
+  note: >
+    These rules demonstrate the governance *mechanism*. A production deployment
+    would replace this file with a validated rulebook and a professional review.
+
+rules:
+  - id: POL-PARAM-001
+    name: Recovery plan parameter bounds
+    dimension: data_integrity
+    provenance: configured_policy
+    severity: FAIL
+    description: >
+      Optimizer output must stay inside physically meaningful bounds before any
+      downstream system sees it. Guards against a hallucinated or corrupt plan.
+    params:
+      cost_min: 0.0
+      service_level_range: [0.0, 1.0]
+      resilience_score_range: [0.0, 1.0]
+      temperature_risk_range: [0.0, 1.0]
+      recovery_time_hours_max: 720.0
+
+  - id: POL-EVIDENCE-001
+    name: Plan carries network evidence
+    dimension: traceability
+    provenance: configured_policy
+    severity: FAIL
+    description: >
+      A plan must name the SKUs and lanes it affects. An un-evidenced plan
+      cannot be approved because it cannot be audited.
+    params:
+      min_impacted_skus: 1
+      min_impacted_lanes: 1
+
+  - id: POL-BUDGET-001
+    name: Recovery cost inside tier budget cap
+    dimension: financial
+    provenance: configured_policy
+    severity: FAIL
+    description: >
+      Spend is capped by the approval tier the plan lands in. A plan may never
+      exceed the cap of the tier it escalates to.
+    params:
+      caps:
+        L1: 5000.0
+        L2: 50000.0
+        L3: 250000.0
+        L4: null
+
+  - id: POL-TEMP-001
+    name: GDP-style cold-chain temperature risk ceiling
+    dimension: cold_chain
+    provenance: illustrative_check
+    severity: FAIL
+    description: >
+      Illustrative stand-in for a GDP (Good Distribution Practice) temperature
+      control requirement: a plan for 2-8C biologics must bring post-recovery
+      temperature risk below the ceiling. This is NOT a regulatory
+      certification and the MVP makes no compliance guarantee.
+    params:
+      max_temperature_risk: 0.35
+      applies_to_temp_classes: ["2_8C"]
+
+  - id: POL-TEMP-002
+    name: Excursed consignment requires corrective action
+    dimension: cold_chain
+    provenance: illustrative_check
+    severity: FAIL
+    description: >
+      A consignment whose telemetry breached the excursion limit may not
+      continue on an uncorrected 2-8C lane. The plan must either correct the
+      lane or quarantine the consignment.
+    params:
+      excursed_shipments: ["SHIP-001"]
+      acceptable_strategies:
+        - "REROUTE_MUMBAI_AIR"
+        - "EMERGENCY_SOURCE"
+        - "QUARANTINE_AND_RECALL"
+        - "PRECOOL_AND_HOLD"
+
+  - id: POL-SERVICE-001
+    name: Service level floor for critical SKUs
+    dimension: service
+    provenance: configured_policy
+    severity: FAIL
+    description: >
+      Critical (lifesaving / biologics) SKUs must retain a contracted service
+      level after recovery. Trading a missed dose for a cheaper plan is not a
+      permitted recovery.
+    params:
+      min_service_level: 0.90
+      critical_temp_classes: ["2_8C"]
+
+  - id: POL-SANCT-001
+    name: Route avoids sanctioned territory
+    dimension: trade_compliance
+    provenance: simulated_rule
+    severity: FAIL
+    description: >
+      Stand-in for a party/territory screening check. Simulated: the MVP ships
+      with a small configured list, not a maintained sanctions feed.
+    params:
+      blocked_countries: []
+      blocked_nodes: []
+
+  - id: POL-TRADE-001
+    name: Trade-restricted corridor requires review
+    dimension: trade_compliance
+    provenance: simulated_rule
+    severity: WARN
+    description: >
+      Plans transiting a corridor under an active trade restriction need a
+      documented review. WARN, not FAIL: review is a human obligation.
+    params:
+      restricted_corridors: []
+      warn_on_red_sea: true
+
+  - id: POL-SUPPLIER-001
+    name: Alternate supplier risk ceiling
+    dimension: supplier_risk
+    provenance: configured_policy
+    severity: WARN
+    description: >
+      An emergency re-source may not silently onboard a high-risk supplier.
+      Above the ceiling the plan is still executable but must be flagged.
+    params:
+      max_supplier_risk: 0.75
+      applies_to_strategies: ["EMERGENCY_SOURCE"]
+
+  - id: POL-APPROVAL-001
+    name: Consequential action requires named human authority
+    dimension: governance
+    provenance: configured_policy
+    severity: FAIL
+    description: >
+      The governance invariant: no consequential SAP-shaped action executes
+      without a recorded approval from the required role. Enforced server-side;
+      the UI has no path around it.
+    params:
+      consequential_from_tier: L2
+      require_approval_role: true

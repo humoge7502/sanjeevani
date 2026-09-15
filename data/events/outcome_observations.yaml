@@ -1,0 +1,45 @@
+# SANJEEVANI post-execution observation feed.
+#
+# LABEL: SIMULATED. These stand in for the ETA / cost / quality feedback a real
+# deployment would receive from TM, IBP and the QA system after a recovery
+# executes. Nothing here is produced by an external system at runtime.
+#
+# The Learning agent compares these values to what the plan PREDICTED before
+# execution. It does not retrain anything.
+
+meta:
+  feed_id: FEED-OUTCOMES-SIMULATED
+  labelled_as: simulated
+  description: >
+    Seeded post-execution observations. A production build would populate these
+    from TM freight confirmations, IBP actual key figures and the QA disposition
+    record.
+
+observations:
+  PLAN-001:
+    # Actuals for the recommended fix: re-route via Mumbai + air uplift.
+    recovery_cost_usd: 191500.00        # predicted 184,000 -> 4.1% over
+    service_level: 0.9581               # predicted 0.9650 -> slightly under
+    temperature_risk: 0.2380            # predicted 0.2200 -> slightly over
+    resilience_score: 0.8060            # predicted 0.8100
+    recovery_time_hours: 16.5           # predicted 18.0 -> faster
+    revenue_at_risk_usd: 3812500.00     # predicted ~3,908,933 -> better
+    stockout_probability: 0.6402        # predicted ~0.6559 -> better
+    service_level_risk: 0.6173          # predicted ~0.6314 -> better
+    _note: >
+      Air uplift landed under the quoted transit, so cost and service came in
+      close to plan while the residual revenue exposure beat the estimate.
+
+  PLAN-003:
+    # Actuals for emergency re-sourcing: attempted only in the alt-path demo.
+    recovery_cost_usd: 263400.00
+    service_level: 0.9740
+    temperature_risk: 0.3250
+    resilience_score: 0.7350
+    recovery_time_hours: 33.0
+    revenue_at_risk_usd: 3998000.00
+    stockout_probability: 0.6520
+    service_level_risk: 0.6290
+    _note: >
+      Alternate-source onboarding took three hours longer than quoted and cost
+      6.2% more; service was slightly below plan.

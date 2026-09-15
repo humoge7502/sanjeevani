@@ -1,0 +1,19 @@
+{
+  "contract": "execution_receipt",
+  "version": "1.0.0 (frozen per workflow PDF Ch.3)",
+  "example": {
+    "plan_id": "PLAN-001",
+    "ibp": "SUCCESS",
+    "tm": "SUCCESS",
+    "ariba": "SUCCESS",
+    "timestamp": "ISO-8601"
+  },
+  "fields": [
+    "plan_id (str, FK)",
+    "ibp (SUCCESS/FAILED)",
+    "tm (SUCCESS/FAILED)",
+    "ariba (SUCCESS/FAILED)",
+    "timestamp (ISO-8601)"
+  ],
+  "rule": "No member invents a private schema; stable field names; version on breaking change."
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "Chronos: Pretrained Models for Time Series Forecasting",
+    "snippet": "This package provides an interface to the Chronos family of pretrained time series forecasting models . License This project is licensed under the Apache-2.0  ...",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co",
+    "name": "amazon/chronos-t5-large",
+    "snippet": "Mar 12, 2024 — Chronos models are now available on Amazon SageMaker JumpStart ! Chronos is a family of pretrained time series forecasting models based on ...",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "Mar 12, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://galileo.ai",
+    "name": "Amazon Chronos: Complete Guide to AI Time Series",
+    "snippet": "Sep 5, 2025 — That's Amazon Chronos —a transformer-based, pre-trained foundation model built specifically for time-series forecasting within the AWS ecosystem. Read more",
+    "host_name": "galileo.ai",
+    "rank": 2,
+    "date": "Sep 5, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://pypi.org",
+    "name": "chronos-forecasting 1.5.1",
+    "snippet": "Chronos -Bolt is now available on Amazon SageMaker JumpStart! is a family of pretrained time series forecasting models based on language model architectures.",
+    "host_name": "pypi.org",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://aws.amazon.com",
+    "name": "How Deutsche Bahn redefines forecasting using Chronos",
+    "snippet": "May 7, 2025 — Unlike traditional time series forecasting models that require training on specific datasets, Chronos can be used for forecasting immediately . Read more",
+    "host_name": "aws.amazon.com",
+    "rank": 4,
+    "date": "May 7, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.amazon.science",
+    "name": "Introducing Chronos-2: From univariate to universal",
+    "snippet": "Chronos -2's enhanced ICL capabilities also improve univariate forecasting by enabling cross-learning, where the model shares information across univariate time ... Read more",
+    "host_name": "www.amazon.science",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://github.com",
+    "name": "TimesFM (Time Series Foundation Model) is a pretrained",
+    "snippet": "The TimesFM source code in this repository is licensed under Apache-2.0 , and model weights up to version 2.5 remain Apache-2.0. non-production use.",
+    "host_name": "github.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.cloud.google.com/bigquery/docs/timesfm-model",
+    "name": "TimesFM-3: A zero-shot foundation model for multivariate",
+    "snippet": "TimesFM-3, a state-of-the-art time series foundation model that enables highly accurate multivariate time series forecasting in a single forward pass,",
+    "host_name": "docs.cloud.google.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co",
+    "name": "TimesFM Release - a google Collection",
+    "snippet": "TimesFM (Time Series Foundation Model ) is a pretrained time-series foundation model developed by Google Research for time-series forecasting.",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://arxiv.org",
+    "name": "Time-Series Foundation Model for Value-at-Risk",
+    "snippet": "Oct 15, 2024 — In this paper, we implement a pre-trained time - series foundation model , specifically Google's TimesFM",
+    "host_name": "arxiv.org",
+    "rank": 3,
+    "date": "Oct 15, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://news.ycombinator.com",
+    "name": "Google's 200M-parameter time-series foundation model",
+    "snippet": "They decompose a time series into trends, seasonality and residuals. That's what they are actually modelling.",
+    "host_name": "news.ycombinator.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cloud.google.com/blog/products/data-analytics/bigquery-ml-timesfm-models-now-in-preview",
+    "name": "Time Series Foundation Models: Use Cases & Benefits",
+    "snippet": "Jun 12, 2026 — TimesFM (Time Series Foundation Model ) is a pretrained time-series foundation model developed by Google Research for time-series forecasting.",
+    "host_name": "cloud.google.com",
+    "rank": 5,
+    "date": "Jun 12, 2026",
+    "favicon": ""
+  }
+]

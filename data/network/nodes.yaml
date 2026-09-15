@@ -1,0 +1,174 @@
+# SANJEEVANI deterministic synthetic pharma network — 12 nodes.
+#
+# Seed plan from the unified dossier (16.2): 4 suppliers (2 in a "China-like"
+# cluster), 2 plants, 3 warehouses, 12 SKUs (2 biologics), 6 lanes (1 Red
+# Sea-exposed).
+#
+# Node taxonomy: supplier | plant | port | warehouse | customer
+# `temp_class` drives GDP-style cold-chain policy evaluation.
+# Every value below is synthetic seed data. Nothing is fetched at runtime.
+
+meta:
+  network_id: NET-SANJEEVANI-01
+  node_count: 12
+  seed: 20260930
+  deterministic: true
+
+nodes:
+  - id: SUP-CHN-A
+    type: supplier
+    name: Sinopharm Intermediates (Shanghai)
+    country: CN
+    city: Shanghai
+    cluster: china-like
+    temp_class: ambient_15_25
+    risk_score: 0.72
+    lead_time_days: 21
+    single_source: true
+    ariba_risk_band: HIGH
+    capacity_units_per_day: 180000
+    note: Single-source supplier for the metformin API intermediate.
+
+  - id: SUP-CHN-B
+    type: supplier
+    name: Ningbo Fine Chemicals
+    country: CN
+    city: Ningbo
+    cluster: china-like
+    temp_class: ambient_15_25
+    risk_score: 0.68
+    lead_time_days: 24
+    single_source: false
+    ariba_risk_band: MEDIUM
+    capacity_units_per_day: 140000
+
+  - id: SUP-IND-A
+    type: supplier
+    name: Hyderabad API Works (domestic)
+    country: IN
+    city: Hyderabad
+    cluster: india
+    temp_class: ambient_15_25
+    risk_score: 0.24
+    lead_time_days: 2
+    single_source: false
+    ariba_risk_band: LOW
+    capacity_units_per_day: 60000
+
+  - id: SUP-EU-A
+    type: supplier
+    name: Rhein Biologics Drug Substance
+    country: DE
+    city: Frankfurt
+    cluster: europe
+    temp_class: 2_8C
+    risk_score: 0.18
+    lead_time_days: 2
+    single_source: true
+    ariba_risk_band: LOW
+    capacity_units_per_day: 9000
+    note: Sole source of the trastuzumab drug substance.
+
+  - id: PLANT-HYD
+    type: plant
+    name: Hyderabad OSD Plant
+    country: IN
+    city: Hyderabad
+    temp_class: ambient_15_25
+    risk_score: 0.20
+    lead_time_days: 1
+    single_source: false
+    ariba_risk_band: LOW
+    capacity_units_per_day: 220000
+    plant_kind: oral_solid_dose
+    absorbing: false
+
+  - id: PLANT-MUM
+    type: plant
+    name: Mumbai Aseptic Fill-Finish
+    country: IN
+    city: Mumbai
+    temp_class: 2_8C
+    risk_score: 0.26
+    lead_time_days: 1
+    single_source: true
+    ariba_risk_band: MEDIUM
+    capacity_units_per_day: 24000
+    plant_kind: aseptic_fill_finish
+    note: Only aseptic line capable of the biologics portfolio.
+
+  - id: PORT-JNPT
+    type: port
+    name: Nhava Sheva (JNPT)
+    country: IN
+    city: Mumbai
+    temp_class: ambient_15_25
+    risk_score: 0.24
+    congestion_index: 0.38
+    closure_status: OPEN
+    single_source: false
+    ariba_risk_band: LOW
+
+  - id: PORT-SUEZ
+    type: port
+    name: Bab-el-Mandeb / Suez corridor
+    country: EG
+    city: Suez
+    temp_class: ambient_15_25
+    risk_score: 0.81
+    congestion_index: 0.22
+    closure_status: OPEN
+    chokepoint: true
+    single_source: false
+    ariba_risk_band: HIGH
+
+  - id: WH-BOM
+    type: warehouse
+    name: Mumbai Cold Hub
+    country: IN
+    city: Mumbai
+    temp_class: 2_8C
+    risk_score: 0.19
+    lead_time_days: 0
+    temp_controlled: true
+    setpoint_c: 5.0
+    single_source: false
+    ariba_risk_band: LOW
+
+  - id: WH-DEL
+    type: warehouse
+    name: Delhi Distribution Centre
+    country: IN
+    city: Delhi
+    temp_class: ambient_15_25
+    risk_score: 0.21
+    lead_time_days: 0
+    temp_controlled: true
+    setpoint_c: 22.0
+    single_source: false
+    ariba_risk_band: LOW
+
+  - id: WH-FRA
+    type: warehouse
+    name: Frankfurt EU Consolidation Cold Hub
+    country: DE
+    city: Frankfurt
+    temp_class: 2_8C
+    risk_score: 0.14
+    lead_time_days: 0
+    temp_controlled: true
+    setpoint_c: 5.0
+    single_source: false
+    ariba_risk_band: LOW
+
+  - id: CUST-EU-HUB
+    type: customer
+    name: Regulated Markets Distribution Hub
+    country: DE
+    city: Frankfurt
+    temp_class: 2_8C
+    risk_score: 0.16
+    service_target: 0.98
+    markets: [EU, US, SEA]
+    single_source: false
+    ariba_risk_band: LOW

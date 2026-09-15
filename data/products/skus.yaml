@@ -1,0 +1,136 @@
+# SANJEEVANI SKU catalog — 12 products, 2 of them biologics.
+#
+# `coverage_days` is the on-hand inventory cover for this SKU at the consuming
+# market. It is the ONLY inventory input to A3's stockout model, which keeps the
+# impact arithmetic auditable in one place.
+#
+# `unit_price_usd` x units shipped = consignment value (see shipments.yaml).
+# All values are synthetic seed data.
+
+meta:
+  sku_count: 12
+  biologic_count: 2
+
+skus:
+  - id: BIO-001
+    name: Insulin Glargine 100IU/mL
+    form: biologic
+    temp_class: 2_8C
+    unit_price_usd: 42.00
+    coverage_days: 2.5
+    margin_band: high
+    criticality: critical
+    gdp_sensitive: true
+    shelf_life_days: 730
+
+  - id: BIO-002
+    name: Trastuzumab 440mg
+    form: biologic
+    temp_class: 2_8C
+    unit_price_usd: 680.00
+    coverage_days: 5.0
+    margin_band: high
+    criticality: critical
+    gdp_sensitive: true
+    shelf_life_days: 540
+    note: Hero SKU. Sole-sourced drug substance from SUP-EU-A.
+
+  - id: GEN-001
+    name: Paracetamol 500mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.85
+    coverage_days: 30.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-002
+    name: Metformin 500mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.62
+    coverage_days: 30.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-003
+    name: Atorvastatin 10mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 1.10
+    coverage_days: 28.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-004
+    name: Amoxicillin 500mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.95
+    coverage_days: 21.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-005
+    name: Omeprazole 20mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.90
+    coverage_days: 25.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-006
+    name: Losartan 50mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.78
+    coverage_days: 26.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-007
+    name: Azithromycin 250mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 1.65
+    coverage_days: 18.0
+    margin_band: medium
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-008
+    name: Pantoprazole 40mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 1.05
+    coverage_days: 24.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-009
+    name: Cetirizine 10mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 0.45
+    coverage_days: 32.0
+    margin_band: low
+    criticality: standard
+    gdp_sensitive: false
+
+  - id: GEN-010
+    name: Ondansetron 4mg
+    form: generic
+    temp_class: ambient_15_25
+    unit_price_usd: 1.35
+    coverage_days: 20.0
+    margin_band: medium
+    criticality: standard
+    gdp_sensitive: false

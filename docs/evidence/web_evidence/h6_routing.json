@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://www.searates.com",
+    "name": "Tracking System API for Logistics",
+    "snippet": "Optimize your logistics with the Tracking System API. Gain real-time visibility, track shipments globally , and enhance your supply chain efficiency.",
+    "host_name": "www.searates.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://searoutesnav.com",
+    "name": "Sea Routes API - Port Distance & Voyage Time REST API",
+    "snippet": "Plan sea routes, estimate voyage time, and calculate port distances between ports or coordinates with one REST API call. Built for shipping, logistics, and ... Read more",
+    "host_name": "searoutesnav.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://datalastic.com",
+    "name": "Ship Sea Route API for Maritime Route Planning",
+    "snippet": "The Sea Route API allows you to calculate the maritime route between two points on the globe , either between ports or between specific geographic coordinates",
+    "host_name": "datalastic.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://marine-sky.vercel.app",
+    "name": "Sea Distance API: Port-to-Port Route APIs Compared (2026)",
+    "snippet": "Jul 11, 2026 — The Marine OS Route API returns distance , voyage time, passages, and GeoJSON geometry at $799 per month billed annually. For occasional lookups, ... Read more",
+    "host_name": "marine-sky.vercel.app",
+    "rank": 3,
+    "date": "Jul 11, 2026",
+    "favicon": ""
+  }
+]

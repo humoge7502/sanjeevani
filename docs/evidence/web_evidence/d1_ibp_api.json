@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://help.sap.com",
+    "name": "Importing Stock Data Using OData Service",
+    "snippet": "Using the /IBP/API_STOCK OData API service , you can import stock data to SAP Integrated Business Planning (SAP IBP) from external systems.",
+    "host_name": "help.sap.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com",
+    "name": "Access SAP IBP Master & Key Figures data using OData",
+    "snippet": "May 26, 2021 — First of all, need to setup a communication users to access the OData URL. This communication user is required to access the Odata query URL ... Read more",
+    "host_name": "community.sap.com",
+    "rank": 1,
+    "date": "May 26, 2021",
+    "favicon": ""
+  },
+  {
+    "url": "https://sbpdigital.com",
+    "name": "Integrating IBP and BTP Using Standard OData APIs",
+    "snippet": "Jul 26, 2022 — These OData services can export data into external reporting or planning tools and also import data into SAP Integrated Business Planning for ... Read more",
+    "host_name": "sbpdigital.com",
+    "rank": 2,
+    "date": "Jul 26, 2022",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.lonti.com",
+    "name": "SAP Integrated Business Planning Integration Guide",
+    "snippet": "Connect SAP Integrated Business Planning with enterprise applications through OData APIs, selected SOAP services, file exchange, and scheduled integration ... Read more",
+    "host_name": "www.lonti.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,105 @@
+# ⚠️  M2 BOUNDARY FIXTURE — NOT AN OPTIMIZER.
+#
+# Member 2 owns simulation + optimization. This file stands in for M2 so M3 can
+# be developed, tested and demoed without it, exactly as the team handoff
+# specifies.
+#
+#   M1 -> Impact -> [ THIS FIXTURE ] -> RecoveryPlan -> M3
+#
+# What is NOT happening here: no MILP is solved, no digital twin is replayed, no
+# cost is optimized. The numbers below are hand-set, deterministic and labelled
+# `source: fixture` on the contract object. When M2 lands, replace
+# `backend/m2/recovery_plan_provider.py`'s `FixtureRecoveryPlanProvider` with the
+# real provider; M3 requires no changes because both return the same
+# `RecoveryPlan` contract (see docs/mock-boundaries.md).
+#
+# Strategies mirror the dossier's three plays: WAIT, REROUTE VIA MUMBAI + AIR,
+# EMERGENCY SOURCE.
+
+meta:
+  fixture_version: "1.0.0"
+  owner: M2
+  consumed_by: M3
+  reality: deterministic fixture
+  optimizer_implemented: false
+
+plans:
+  - plan_id: PLAN-001
+    strategy: REROUTE_MUMBAI_AIR
+    label: "Reroute via Mumbai + air uplift"
+    recommended: true
+    cost: 184000.00
+    service_level: 0.965
+    resilience_score: 0.81
+    temperature_risk: 0.22
+    recovery_time_hours: 18.0
+    rationale: >
+      Move the excursed consignment to controlled 2-8C storage at Mumbai, uplift
+      the replacement lot by air on the unaffected corridor, and hold the
+      remaining ocean bookings until the corridor reopens.
+    actions:
+      - system: ibp
+        operation: create_scenario
+        description: "Create IBP scenario SCN-RECOVERY-001 with re-planned key figures"
+      - system: tm
+        operation: rebook_freight_order
+        description: "Re-book the affected freight order to air uplift Mumbai-Frankfurt"
+      - system: ariba
+        operation: request_supplier_risk_scores
+        description: "Pull risk exposure for the alternate cold-storage provider"
+    impacted_skus: [BIO-002, BIO-001]
+    impacted_lanes: [LANE-MUM-BIO-EU]
+
+  - plan_id: PLAN-002
+    strategy: WAIT
+    label: "Wait for corridor reopening"
+    recommended: false
+    cost: 0.00
+    service_level: 0.712
+    resilience_score: 0.28
+    temperature_risk: 0.86
+    recovery_time_hours: 336.0
+    rationale: >
+      Take no action. The excursed consignment continues on a 2-8C lane with no
+      corrective step and inventory cover is exhausted inside the closure
+      window.
+    actions:
+      - system: ibp
+        operation: create_scenario
+        description: "Create IBP scenario SCN-BASELINE-WAIT"
+    impacted_skus: [BIO-002, BIO-001]
+    impacted_lanes: [LANE-MUM-BIO-EU]
+
+  - plan_id: PLAN-003
+    strategy: EMERGENCY_SOURCE
+    label: "Emergency source from alternate supplier"
+    recommended: false
+    cost: 248000.00
+    service_level: 0.978
+    resilience_score: 0.74
+    temperature_risk: 0.31
+    recovery_time_hours: 30.0
+    rationale: >
+      Onboard the alternate drug-substance source at higher unit cost to protect
+      the service level, and quarantine the excursed consignment pending QA
+      disposition.
+    actions:
+      - system: ibp
+        operation: create_scenario
+        description: "Create IBP scenario SCN-RECOVERY-003 with alternate source key figures"
+      - system: tm
+        operation: rebook_freight_order
+        description: "Re-book inbound drug-substance air freight from the alternate source"
+      - system: ariba
+        operation: request_supplier_risk_scores
+        description: "Risk exposure check on the alternate supplier before onboarding"
+    impacted_skus: [BIO-002]
+    impacted_lanes: [LANE-EU-A-DS]
+
+scenario_bindings:
+  # Which fixture plans apply to which event/scenario. M3 asks for a plan by
+  # event id; the provider returns the recommended plan + the ranked table.
+  - event_id: EVT-REDSEA-COLDCHAIN
+    scenario_id: SCN-HERO-001
+    recommended_plan_id: PLAN-001
+    ranked_plan_ids: [PLAN-001, PLAN-003, PLAN-002]

@@ -1,0 +1,106 @@
+# SANJEEVANI runtime settings.
+#
+# Everything here is a *knob*, not a hidden constant. Any threshold quoted in
+# the UI is traceable to a key in this file (the API exposes it as evidence).
+
+meta:
+  config_version: "1.0.0"
+  scenario_clock_utc: "2026-09-30T06:00:00Z"
+
+runtime:
+  # Offline mode is the DEFAULT and the demo guarantee: no external service is
+  # ever load-bearing. Setting this true makes A1 refuse to attempt any network
+  # fetch at all (defence in depth -- it currently never does).
+  offline: true
+  deterministic_seed: 20260930
+  # Wall-clock is frozen in demo mode so timestamps are reproducible across runs.
+  freeze_clock: true
+  # LLM enrichment is OPTIONAL and disabled. When enabled it may only produce
+  # narrative text; it may never produce a number used by a contract.
+  llm_enabled: false
+
+sensing:
+  # A1 -> A2 handoff gate. Below this the candidate stays on the watchlist.
+  escalate_confidence: 0.60
+  # Used by A1's classifier; free-text is never the source of a number.
+  source_class_weights:
+    IOT: 1.00
+    PORT_AUTHORITY: 0.95
+    CARRIER: 0.85
+    TRADE_POLICY: 0.85
+    NEWS: 0.70
+    MANUAL: 0.60
+
+verification:
+  # The 2-source rule: signals agreeing across this many source CLASSES verify.
+  min_source_classes: 2
+  # Signals older than this are stale and cannot verify an event on their own.
+  max_signal_age_hours: 24.0
+  # Dedup window: same type+target inside this window collapses to one event.
+  dedup_window_hours: 48.0
+  # Verifying a low-reliability single source is not enough.
+  min_source_reliability: 0.50
+
+scenario:
+  horizons_days: [3, 10, 30]
+  # Parameter clamps -- A2 may propose parameters but never outside these bounds.
+  clamp:
+    duration_days: [1, 60]
+    transit_delay_days: [0, 45]
+    capacity_factor: [0.05, 1.0]
+
+impact:
+  # Stockout model: p = 1 - exp(-shortfall_days / service_recovery_days)
+  service_recovery_days: 5.0
+  # Cold-chain condemnation model (see backend/agents/impact.py).
+  cold_chain:
+    tolerable_peak_excess_c: 0.5
+    tolerable_minutes: 15.0
+    full_condemn_peak_excess_c: 12.0
+    full_condemn_degree_hours: 6.0
+  # Currency and rounding for reporting (raw floats stay unrounded internally).
+  currency: USD
+  rounding:
+    money_decimals: 2
+    ratio_decimals: 4
+
+governance:
+  # Cost-banded approval tiers.
+  tiers:
+    - id: AUTO
+      max_cost: 5000
+      required_role: null
+      risk_tier: L1
+    - id: PLANNER
+      max_cost: 50000
+      required_role: planner
+      risk_tier: L2
+    - id: SUPPLY_PLANNING_HEAD
+      max_cost: 250000
+      required_role: supply_planning_head
+      risk_tier: L3
+    - id: COO
+      max_cost: null
+      required_role: coo
+      risk_tier: L4
+  # A compliance-sensitive plan always escalates at least this far, even when
+  # the cost band would allow less.
+  compliance_sensitive_min_tier: L3
+  # Plans at or above this tier can never auto-execute.
+  human_required_from_tier: L3
+
+audit:
+  # Append-only JSONL ledger + SHA-256 hash chain for tamper evidence.
+  hash_chain: true
+  ledger_path: "runtime/audit_ledger.jsonl"
+  # Records are never updated or deleted by application code.
+
+api:
+  host: "127.0.0.1"
+  # 8787 rather than the conventional 8000: 8000 is very commonly occupied by
+  # unrelated local services, and a port collision on stage is an avoidable
+  # failure. Override with: uvicorn ... --port <n>
+  port: 8787
+  cors_origins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"

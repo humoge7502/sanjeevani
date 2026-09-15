@@ -1,0 +1,19 @@
+{
+  "contract": "outcome",
+  "version": "1.0.0 (frozen per workflow PDF Ch.3)",
+  "example": {
+    "plan_id": "PLAN-001",
+    "predicted": {},
+    "actual": {},
+    "delta": {},
+    "learning_note": ""
+  },
+  "fields": [
+    "plan_id (str, FK)",
+    "predicted (object)",
+    "actual (object)",
+    "delta (object)",
+    "learning_note (str)"
+  ],
+  "rule": "No member invents a private schema; stable field names; version on breaking change."
+}

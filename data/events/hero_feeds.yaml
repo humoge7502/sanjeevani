@@ -1,0 +1,185 @@
+# SANJEEVANI scripted signal feeds — the hero scenario's raw inputs.
+#
+# These stand in for live news / port-authority / carrier / IoT feeds. They are
+# FILES, not network calls, which is what makes the demo offline-safe.
+#
+# A1 (Sensing) treats every record here as an untrusted raw signal: it
+# normalises, classifies and scores it, but the numbers a downstream agent uses
+# come from the deterministic claim payload -- never from free text.
+#
+# Scenario t0 = 2026-09-30T06:00:00Z.
+
+meta:
+  feed_id: FEED-HERO-REDSEA-COLDCHAIN
+  scenario_id: SCN-HERO-001
+  scenario_name: Red Sea corridor closure + biologics cold-chain excursion
+  t0_utc: "2026-09-30T06:00:00Z"
+  deterministic: true
+
+signals:
+  - signal_id: SIG-001
+    source_class: NEWS
+    source_id: reuters-maritime
+    source_reliability: 0.92
+    source_url: "https://example.invalid/reuters/red-sea-corridor-2026-09-30"
+    published_utc: "2026-09-30T05:12:00Z"
+    retrieved_utc: "2026-09-30T05:14:00Z"
+    headline: "Tanker strike suspends Bab-el-Mandeb transits; carriers weigh Cape re-route"
+    body: >
+      Two carriers confirmed they will route Indian Ocean export sailings around
+      the Cape of Good Hope. Trade sources put the added transit at roughly
+      twelve days for south-Asia to Europe services.
+    entities: [PORT-SUEZ, RED-SEA, LANE-MUM-BIO-EU]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-SUEZ
+      corridor: RED_SEA
+      duration_days: 10
+      transit_delay_days: 12
+      capacity_factor: 0.15
+
+  - signal_id: SIG-002
+    source_class: PORT_AUTHORITY
+    source_id: suez-canal-authority-advisory
+    source_reliability: 0.97
+    source_url: "https://example.invalid/sca/advisory-2026-114"
+    published_utc: "2026-09-30T05:40:00Z"
+    retrieved_utc: "2026-09-30T05:41:00Z"
+    headline: "Corridor status: SUSPENDED pending security assessment (estimated 10 days)"
+    body: >
+      Northbound and southbound transits are held. Reopening is estimated at ten
+      days and is conditional on a security assessment.
+    entities: [PORT-SUEZ, RED-SEA]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-SUEZ
+      corridor: RED_SEA
+      duration_days: 10
+      transit_delay_days: 12
+      capacity_factor: 0.15
+
+  - signal_id: SIG-003
+    source_class: CARRIER
+    source_id: carrier-network-advisory
+    source_reliability: 0.88
+    source_url: "https://example.invalid/carrier/network-advisory-8821"
+    published_utc: "2026-09-30T05:55:00Z"
+    retrieved_utc: "2026-09-30T05:56:00Z"
+    headline: "Reefer bookings for Red Sea services moved to Cape routing (+12 days)"
+    body: >
+      Reefer capacity for the affected services is re-assigned to Cape routing.
+      Temperature-controlled bookings are prioritised for air uplift subject to
+      capacity.
+    entities: [PORT-SUEZ, LANE-MUM-BIO-EU]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-SUEZ
+      corridor: RED_SEA
+      duration_days: 10
+      transit_delay_days: 12
+      capacity_factor: 0.15
+
+  - signal_id: SIG-004
+    source_class: IOT
+    source_id: reefer-sensor-TVE-4417
+    source_reliability: 0.99
+    source_url: "device://reefer-sensor-TVE-4417"
+    published_utc: "2026-09-30T05:58:00Z"
+    retrieved_utc: "2026-09-30T05:58:30Z"
+    headline: "Temperature above 8.0C on consignment SHIP-001"
+    body: >
+      Device TVE-4417 reports 13 samples above the 2-8C excursion limit with a
+      peak of 11.4C while the consignment waited at PORT-SUEZ.
+    entities: [SHIP-001, PORT-SUEZ]
+    claim:
+      event_type: COLD_CHAIN_EXCURSION
+      target: SHIP-001
+      lane: LANE-MUM-BIO-EU
+      sku: BIO-002
+      temp_limit_max_c: 8.0
+      peak_temp_c: 11.4
+      telemetry_profile: cold_excursion_hero
+
+  - signal_id: SIG-007
+    source_class: NEWS
+    source_id: trade-press-daily
+    source_reliability: 0.90
+    source_url: "https://example.invalid/trade-press/red-sea-corridor"
+    published_utc: "2026-09-30T05:20:00Z"
+    retrieved_utc: "2026-09-30T05:22:00Z"
+    headline: "Red Sea disruption: carriers halt sailings as security risk mounts"
+    body: >
+      A second outlet reports the same corridor suspension and the same Cape
+      re-route guidance for south-asia to Europe services.
+    entities: [PORT-SUEZ, RED-SEA]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-SUEZ
+      corridor: RED_SEA
+      duration_days: 10
+      transit_delay_days: 12
+      capacity_factor: 0.15
+    expect: duplicate_within_news_class
+
+  - signal_id: SIG-005
+    source_class: NEWS
+    source_id: trade-bulletin-archive
+    source_reliability: 0.55
+    source_url: "https://example.invalid/bulletin/2026-09-28-copy"
+    published_utc: "2026-09-28T04:00:00Z"
+    retrieved_utc: "2026-09-30T05:15:00Z"
+    headline: "Shipping lines consider Red Sea alternatives (archived)"
+    body: >
+      Archived advisory discussing contingency routing options. No corridor
+      status change recorded at publication time.
+    entities: [PORT-SUEZ, RED-SEA]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-SUEZ
+      corridor: RED_SEA
+      duration_days: 6
+      transit_delay_days: 9
+      capacity_factor: 0.4
+    expect: stale_and_duplicate
+
+  - signal_id: SIG-008
+    source_class: NEWS
+    source_id: logistics-wire-single
+    source_reliability: 0.95
+    source_url: "https://example.invalid/wire/ningbo-supplier-reported-offline"
+    published_utc: "2026-09-30T05:44:00Z"
+    retrieved_utc: "2026-09-30T05:45:00Z"
+    headline: "Ningbo fine-chemicals supplier reported offline after power incident"
+    body: >
+      A single wire report claims the Ningbo supplier has halted output pending an
+      electrical incident. No supplier statement, no carrier notice and no
+      regulatory filing corroborates the report at the time of retrieval.
+    entities: [SUP-CHN-B]
+    claim:
+      event_type: SUPPLIER_DISRUPTION
+      target: SUP-CHN-B
+      duration_days: 14
+      transit_delay_days: 6
+      capacity_factor: 0.3
+    expect: escalates_then_fails_two_source_rule
+
+  - signal_id: SIG-006
+    source_class: NEWS
+    source_id: unnamed-social-post
+    source_reliability: 0.30
+    source_url: "https://example.invalid/social/post-unsourced"
+    published_utc: "2026-09-30T05:50:00Z"
+    retrieved_utc: "2026-09-30T05:51:00Z"
+    headline: "Unconfirmed: dock labour action said to be planned at JNPT next week"
+    body: >
+      A single unverified social post claims a labour action at Nhava Sheva. No
+      second source, no authority advisory, no date confirmed.
+    entities: [PORT-JNPT]
+    claim:
+      event_type: PORT_CLOSURE
+      target: PORT-JNPT
+      corridor: ARABIAN_SEA
+      duration_days: 3
+      transit_delay_days: 4
+      capacity_factor: 0.5
+    expect: watchlist_low_confidence

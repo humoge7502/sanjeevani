@@ -1,0 +1,38 @@
+[
+  {
+    "url": "https://huggingface.co",
+    "name": "Yes, Transformers are Effective for Time Series Forecasting",
+    "snippet": "Jun 16, 2023 — Transformers are not effective for time series forecasting . They compare the Transformer-based models against a simple linear model, which they ...",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "Jun 16, 2023",
+    "favicon": ""
+  },
+  {
+    "url": "https://arxiv.org",
+    "name": "Scaling Transformers for Time Series Forecasting",
+    "snippet": "Jun 24, 2025 — This work empirically examines whether pre-trained large-scale time series models (LSTSMs) trained on diverse datasets can outperform ... Read more",
+    "host_name": "arxiv.org",
+    "rank": 1,
+    "date": "Jun 24, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.salesforce.com",
+    "name": "Time Series Forecasting Benchmark: Introducing GIFT-Eval",
+    "snippet": "Nov 12, 2024 — GIFT-Eval is a new comprehensive benchmark designed for evaluating general time series forecasting models, particularly foundation models.",
+    "host_name": "www.salesforce.com",
+    "rank": 2,
+    "date": "Nov 12, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Time Series Forecasting with HuggingFace and Gluonts ·",
+    "snippet": "This project will help you to build a foundation for using HuggingFace Transformers on any kind of time -related datasets.",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://support.ariba.com",
+    "name": "OpenAPI: How to retrieve Purchase Order details from SAP",
+    "snippet": "as a Supplier, utilize the Purchase Orders Supplier API. Both APIs offer the same functionality: Use the GET /orders endpoint to access purchase order header ... Read more",
+    "host_name": "support.ariba.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.sap.com",
+    "name": "Purchase Orders Supplier API",
+    "snippet": "The Purchase Orders Supplier API enables you to retrieve purchase order or line item information about your buyers directly fromSAP Business Network.",
+    "host_name": "help.sap.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.codelessplatforms.com",
+    "name": "SAP Ariba API Integration Solution",
+    "snippet": "SAP Ariba API integration solution to read and write data between SAP Ariba, ERP, web services and trading partners. purchase orders or trading partners.",
+    "host_name": "www.codelessplatforms.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com",
+    "name": "ARIBA Supplier Network Integration with SAP ECC 6.0",
+    "snippet": "Solved: Hi, We are trying to integrate SAP ECC 6.0 with ARIBA SUPPLIER NETWORK, so that Purchase Order could be exchange between the system.",
+    "host_name": "community.sap.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.scribd.com",
+    "name": "SAP Ariba API Overview and Integration | PDF | Procurement",
+    "snippet": "The APIs cover a range of areas including procurement , sourcing, supplier management, catalogs, and analytics. The majority (122) support the web service format ... Read more",
+    "host_name": "www.scribd.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

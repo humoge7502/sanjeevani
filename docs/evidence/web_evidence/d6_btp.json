@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://www.sap.com",
+    "name": "FAQ Consumption-based commercial model CPEA &",
+    "snippet": "This document is a living document with questions around the consumption-based commercial model for SAP Business Technology Platform ( SAP BTP ).",
+    "host_name": "www.sap.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discovery-center.cloud.sap",
+    "name": "localEstimator - SAP Discovery Center",
+    "snippet": "Estimate Platform Service costs using the Service Estimator tool. Explore features like sharing, personalizing, and collaborating on estimates.",
+    "host_name": "discovery-center.cloud.sap",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://kumulon.com",
+    "name": "Understanding SAP's Consumption-Based Model: CPEA",
+    "snippet": "These credits can cover up to 100% of your annual contract value and can be used for maintenance, cloud services, or other cloud subscriptions over two years. Read more",
+    "host_name": "kumulon.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learning.sap.com",
+    "name": "Exploring SAP BTP Commercial Models and Estimating",
+    "snippet": "After completing this lesson, you will be able to:Evaluate the appropriate SAP BTP commercial model for a given use case and estimate the cost .",
+    "host_name": "learning.sap.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.soapeople.com",
+    "name": "3 pricing options on SAP Business Technology Platform",
+    "snippet": "May 5, 2021 — Discover SAP's 3 pricing models for consuming cloud services that include subscription-based, consumption-based and pay-as-you-go.",
+    "host_name": "www.soapeople.com",
+    "rank": 4,
+    "date": "May 5, 2021",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.epiuselabs.com",
+    "name": "SAP BTP credits: Your guide to smarter SAP innovation",
+    "snippet": "SAP offers a free tier for many BTP services under consumption-based models. This lets you test services without cost before committing. ▫ Available in CPEA ... Read more",
+    "host_name": "www.epiuselabs.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

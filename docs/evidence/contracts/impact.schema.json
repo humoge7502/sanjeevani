@@ -1,0 +1,21 @@
+{
+  "contract": "impact",
+  "version": "1.0.0 (frozen per workflow PDF Ch.3)",
+  "example": {
+    "event_id": "EVT-001",
+    "affected_nodes": [],
+    "affected_shipments": [],
+    "revenue_at_risk": 0,
+    "stockout_probability": 0,
+    "service_level_risk": 0
+  },
+  "fields": [
+    "event_id (str, FK to Event)",
+    "affected_nodes (list)",
+    "affected_shipments (list)",
+    "revenue_at_risk (number)",
+    "stockout_probability (number 0-1)",
+    "service_level_risk (number 0-1)"
+  ],
+  "rule": "No member invents a private schema; stable field names; version on breaking change."
+}

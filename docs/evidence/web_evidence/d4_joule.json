@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://news.sap.com",
+    "name": "Innovative Updates for Supply Chain Management",
+    "snippet": "Oct 7, 2025 — Joule integration will be available in January 2026 , bringing embedded AI to analytics, automation, and approvals across the network.",
+    "host_name": "news.sap.com",
+    "rank": 0,
+    "date": "Oct 7, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.savictech.com",
+    "name": "SAP Autonomous Supply Chain Management 2026 | Joule",
+    "snippet": "May 29, 2026 — SAP launched Autonomous Supply Chain Management at Sapphire 2026 with 6 Joule Assistants and 60+ AI agents. Discover what changed in SAP IBP ...",
+    "host_name": "www.savictech.com",
+    "rank": 1,
+    "date": "May 29, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://prolifics.com",
+    "name": "SAP Joule Agentic AI 2026: Autonomous ERP",
+    "snippet": "Feb 11, 2026 — SAP Joule Agentic will include task-specific AI agents by end of 2026 – up from less than 5% in 2025 – making agentic ERP capability a ...",
+    "host_name": "prolifics.com",
+    "rank": 2,
+    "date": "Feb 11, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://supplychaindigital.com",
+    "name": "SAP: Powering a New Era of Supply Chain Orchestration",
+    "snippet": "Oct 9, 2025 — SAP has confirmed general availability of SAP Supply Chain Orchestration in the first half of 2026 . It is built for businesses looking to ... Read more",
+    "host_name": "supplychaindigital.com",
+    "rank": 3,
+    "date": "Oct 9, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com",
+    "name": "SAP Sapphire 2026 Announcements only",
+    "snippet": "May 14, 2026 — This Blog is a complete collection of every major product announcement , platform launch, and partnership from SAP Sapphire 2026 in Orlando ...",
+    "host_name": "community.sap.com",
+    "rank": 4,
+    "date": "May 14, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.sdcexec.com",
+    "name": "SAP's New Joule Agents Automate Key Supply Chain",
+    "snippet": "Oct 9, 2025 — Three new Joule Agents are designed to automate critical, time-consuming tasks and empower teams to focus on strategic decision-making.",
+    "host_name": "www.sdcexec.com",
+    "rank": 5,
+    "date": "Oct 9, 2025",
+    "favicon": ""
+  }
+]

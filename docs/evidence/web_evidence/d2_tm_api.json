@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://help.sap.com/docs/sap-api-management/sap-api-management/transport-apis-and-its-related-artifacts",
+    "name": "Transport APIs and Its Related Contents - SAP Help Portal",
+    "snippet": "You can use the SAP Cloud Transport Management service (TMS) for exporting, importing, and shipping the APIs and its related contents from the development or ...",
+    "host_name": "help.sap.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://help.sap.com/docs/cloud-alm/applicationhelp/working-with-external-transports",
+    "name": "Working with External Transports - SAP Help Portal",
+    "snippet": "To include external transports in the Features app, you either have to repack the objects of the transport or assign it in the Transport References. Repacking ...",
+    "host_name": "help.sap.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discovery-center.cloud.sap/serviceCatalog/cloud-transport-management",
+    "name": "Cloud Transport Management - SAP Discovery Center Service",
+    "snippet": "SAP Cloud Transport Management service lets you manage software deliverables between accounts of different environments (such as Cloud Foundry and ABAP), ...",
+    "host_name": "discovery-center.cloud.sap",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com/t5/supply-chain-management-q-a/tms-external-planning-via-cpi/qaq-p/14296577",
+    "name": "TMS External Planning via CPI - SAP Community",
+    "snippet": "Dec 24, 2025 · These integrations are typically implemented to exchange transportation data, automate business transactions, and maintain end-to-end visibility ...",
+    "host_name": "community.sap.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com/t5/supply-chain-management-q-a/creating-a-transport-request-in-tm-from-an-external-system/qaq-p/5771156",
+    "name": "Creating a Transport Request in TM from an external system",
+    "snippet": "With services you have a better integration between the two systems. With services a shipment request can be cancelled.",
+    "host_name": "community.sap.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/pulse/understanding-mapping-standard-sap-tm-api-create-freight-da-silva-0rqwf",
+    "name": "Understanding and Mapping the Standard SAP TM API to Create",
+    "snippet": "Feb 1, 2026 · Welcome to this detailed article on integrating with SAP Transportation Management (TM) using the TransportationOrderGenericRequest_In API.",
+    "host_name": "www.linkedin.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

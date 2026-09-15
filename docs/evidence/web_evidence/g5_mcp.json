@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://modelcontextprotocol.io",
+    "name": "Roadmap",
+    "snippet": "Aug 22, 2026 — This page outlines the Core Maintainers' vision for the protocol over the coming six to twelve months, highlighting objectives targeted for ... Read more",
+    "host_name": "modelcontextprotocol.io",
+    "rank": 0,
+    "date": "Aug 22, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.modelcontextprotocol.io",
+    "name": "The 2026-07-28 Specification",
+    "snippet": "Jul 28, 2026 — MCP 2026-07-28 is a major step toward making agent infrastructure work like the rest of the web: stateless, cacheable, routable, and globally ... Read more",
+    "host_name": "blog.modelcontextprotocol.io",
+    "rank": 1,
+    "date": "Jul 28, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.synvestable.com",
+    "name": "Model Context Protocol for Enterprise",
+    "snippet": "Apr 21, 2026 — Complete Enterprise Adoption Guide: MCP Specification , Tool Call Payloads & Observability. 28% of Fortune 500 companies have deployed MCP . Read more",
+    "host_name": "www.synvestable.com",
+    "rank": 2,
+    "date": "Apr 21, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.anthropic.com",
+    "name": "Introducing the Model Context Protocol",
+    "snippet": "Nov 25, 2024 — The Model Context Protocol ( MCP ) is an open standard for connecting AI assistants to the systems where data lives, including content ...",
+    "host_name": "www.anthropic.com",
+    "rank": 3,
+    "date": "Nov 25, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.cloudflare.com",
+    "name": "The next generation of MCP",
+    "snippet": "Aug 6, 2026 — The latest MCP 2026 -07-28 specification was released last week, together with updated TypeScript, Python, Go, and C# SDKs. MCP is now a fully ... Read more",
+    "host_name": "blog.cloudflare.com",
+    "rank": 4,
+    "date": "Aug 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://hidekazu-konishi.com",
+    "name": "Model Context Protocol Specification Version Timeline",
+    "snippet": "Jul 26, 2026 — 2026 -05-21, The release candidate for the next MCP specification , version 2026 -07-28, is published (final publication targeted for July 28, 2026 ) ... Read more",
+    "host_name": "hidekazu-konishi.com",
+    "rank": 5,
+    "date": "Jul 26, 2026",
+    "favicon": ""
+  }
+]

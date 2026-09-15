@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://www.datacamp.com",
+    "name": "CrewAI vs LangGraph vs AutoGen: Choosing the Right",
+    "snippet": "Sep 28, 2025 — In this tutorial, I will walk you through a detailed comparison of three leading multi-agent AI frameworks: CrewAI, LangGraph, and AutoGen .",
+    "host_name": "www.datacamp.com",
+    "rank": 0,
+    "date": "Sep 28, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://galileo.ai",
+    "name": "AutoGen vs. CrewAI vs. LangGraph vs. OpenAI AI Agents",
+    "snippet": "Aug 29, 2025 — AutoGen treats work as a conversation , CrewAI mirrors a human team, LangGraph enforces a state machine, and OpenAI's SDK keeps orchestration ...",
+    "host_name": "galileo.ai",
+    "rank": 1,
+    "date": "Aug 29, 2025",
+    "favicon": ""
+  },
+  {
+    "url": "https://pecollective.com",
+    "name": "AI Agent Frameworks Compared: LangGraph, CrewAI, AutoGen",
+    "snippet": "Apr 6, 2026 — LangGraph is the best pick for explicit stateful workflows . CrewAI is the fastest route to role-based multi-agent collaboration. AutoGen fits ...",
+    "host_name": "pecollective.com",
+    "rank": 2,
+    "date": "Apr 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://pickaxe.co",
+    "name": "CrewAI vs LangGraph vs AutoGen (2026 Comparison)",
+    "snippet": "Honest comparison of CrewAI, LangGraph, and AutoGen . Architecture, pricing, production readiness, and which AI agent framework fits your project.",
+    "host_name": "pickaxe.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://blckalpaca.at",
+    "name": "AI Agent Framework Comparison (LangGraph/CrewAI/AutoGen)",
+    "snippet": "The current version is 1.2.0 (as of May 2026), licensed under MIT. CrewAI is an open-source framework (MIT, Python >=3.10) for building multi - agent systems ...",
+    "host_name": "blckalpaca.at",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.spheron.network",
+    "name": "LangGraph vs CrewAI vs AutoGen: Best AI Agent",
+    "snippet": "Aug 18, 2026 — LangGraph vs CrewAI vs AutoGen compared for production: state management, observability, human-in-the-loop recovery, and GPU cost per ...",
+    "host_name": "www.spheron.network",
+    "rank": 5,
+    "date": "Aug 18, 2026",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,189 @@
+/* ==========================================================================
+   SANJEEVANI design tokens
+   --------------------------------------------------------------------------
+   One source of truth for colour, type, space, radius, elevation and motion.
+   Components never hardcode a hex value or a magic pixel number.
+
+   Direction: "SAP-grade enterprise control room" — calm, dense, legible, low
+   chroma in the surfaces and high chroma only where a value is semantic
+   (status, risk tier, loop stage). Colour is never the ONLY carrier of meaning
+   (see .status-* rules, which pair a colour with a glyph and a text label).
+   ========================================================================== */
+
+:root {
+  /* ---- surface ramp: dark, low-chroma, six deliberate steps --------------- */
+  --bg-base: #080b11;
+  --bg-canvas: #0b1017;
+  --bg-panel: #111823;
+  --bg-panel-2: #161f2c;
+  --bg-raised: #1c2735;
+  --bg-inset: #070a0f;
+
+  /* ---- borders ----------------------------------------------------------- */
+  --border-subtle: #1b2533;
+  --border: #243040;
+  --border-strong: #33425a;
+
+  /* ---- text ramp ---------------------------------------------------------
+   * Every step of this ramp clears WCAG AA (4.5:1) against the LIGHTEST
+   * surface it is ever drawn on, which is --bg-raised (#1c2735). The measured
+   * ratios on that surface are:
+   *
+   *   --text           14.9:1
+   *   --text-secondary  7.5:1
+   *   --text-muted      5.7:1
+   *   --text-faint      5.0:1
+   *
+   * This was not the original palette. The first version used #6f8098 and
+   * #4d5c72, which measured 4.43:1 and 2.62:1 on the panel surface — below the
+   * threshold, and caught only by axe-core running in a real browser. Dense
+   * small type is exactly where a designer's eye stops being reliable, so the
+   * ramp is now anchored to a measured floor rather than to taste.
+   *
+   * The cost is a compressed ramp: "faint" can no longer be very faint on a
+   * near-black canvas and still be legible. Legibility wins.
+   * ------------------------------------------------------------------------ */
+  --text: #e8eef7;
+  --text-secondary: #a8b8cc;
+  --text-muted: #8fa0b7;
+  --text-faint: #8496ad;
+  --text-inverse: #05080d;
+
+  /* ---- brand / accent ---------------------------------------------------- */
+  --accent: #3d8bfd;
+  --accent-hover: #5c9dff;
+  --accent-dim: rgba(61, 139, 253, 0.14);
+  --accent-border: rgba(61, 139, 253, 0.42);
+
+  /* ---- semantic status (paired with glyph + label everywhere) ------------ */
+  --ok: #2ea66b;
+  --ok-dim: rgba(46, 166, 107, 0.14);
+  --ok-border: rgba(46, 166, 107, 0.4);
+
+  --warn: #d8a326;
+  --warn-dim: rgba(216, 163, 38, 0.14);
+  --warn-border: rgba(216, 163, 38, 0.42);
+
+  --danger: #f0553f;
+  --danger-dim: rgba(240, 85, 63, 0.14);
+  --danger-border: rgba(240, 85, 63, 0.44);
+
+  --info: #39c0d4;
+  --info-dim: rgba(57, 192, 212, 0.14);
+  --info-border: rgba(57, 192, 212, 0.4);
+
+  --violet: #a077f0;
+  --violet-dim: rgba(160, 119, 240, 0.14);
+  --violet-border: rgba(160, 119, 240, 0.4);
+
+  /* ---- risk tiers -------------------------------------------------------- */
+  --tier-l1: var(--ok);
+  --tier-l2: var(--accent);
+  --tier-l3: var(--warn);
+  --tier-l4: var(--danger);
+
+  /* ---- data viz series (colourblind-considered, ordered by contrast) ----- */
+  --series-1: #3d8bfd;
+  --series-2: #39c0d4;
+  --series-3: #a077f0;
+  --series-4: #d8a326;
+  --series-5: #2ea66b;
+  --series-6: #f0553f;
+
+  /* ---- typography -------------------------------------------------------- */
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --fs-2xs: 0.6875rem;   /* 11px — micro labels, uppercase only */
+  --fs-xs: 0.75rem;      /* 12px — secondary metadata */
+  --fs-sm: 0.8125rem;    /* 13px — body small, table cells */
+  --fs-md: 0.875rem;     /* 14px — body default */
+  --fs-lg: 1rem;         /* 16px — panel titles */
+  --fs-xl: 1.25rem;      /* 20px — section headings */
+  --fs-2xl: 1.75rem;     /* 28px — KPI values */
+  --fs-3xl: 2.25rem;     /* 36px — hero KPI */
+
+  --lh-tight: 1.2;
+  --lh-normal: 1.45;
+  --lh-relaxed: 1.6;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --tracking-wide: 0.08em;
+  --tracking-normal: 0.01em;
+  --tracking-tight: -0.011em;
+
+  /* ---- space (4px base) -------------------------------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+
+  /* ---- radius ------------------------------------------------------------ */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  /* ---- elevation --------------------------------------------------------- */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --e2: 0 2px 8px rgba(0, 0, 0, 0.36);
+  --e3: 0 8px 24px rgba(0, 0, 0, 0.44);
+  --e4: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  /* ---- motion ------------------------------------------------------------ */
+  --dur-instant: 90ms;
+  --dur-fast: 160ms;
+  --dur-normal: 260ms;
+  --dur-slow: 480ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---- layout ------------------------------------------------------------ */
+  --rail-w: 232px;
+  --maxw: 1680px;
+  --header-h: 52px;
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion: the entire motion vocabulary collapses to near-zero. The
+   demo must remain fully readable for a user who has asked for less movement.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 1ms;
+    --dur-fast: 1ms;
+    --dur-normal: 1ms;
+    --dur-slow: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Forced-colors / high-contrast: rely on borders and text, not fills. */
+@media (forced-colors: active) {
+  :root {
+    --border: CanvasText;
+    --border-strong: CanvasText;
+    --bg-panel: Canvas;
+    --bg-panel-2: Canvas;
+  }
+}

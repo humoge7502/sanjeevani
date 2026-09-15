@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://intuitionlabs.ai",
+    "name": "DSCSA vs. EU FMD: A Pharma Serialization & Traceability",
+    "snippet": "Jan 6, 2026 — The DSCSA (enacted 2013, phased through 2023–2025) requires serialization of every prescription unit in the U.S. supply chain and the exchange ...",
+    "host_name": "intuitionlabs.ai",
+    "rank": 0,
+    "date": "Jan 6, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://rfxcel.com",
+    "name": "DSCSA vs. EU FMD",
+    "snippet": "DSCSA traces custody; EU FMD verifies at dispense . Compare barcodes, data, aggregation, and compliance rules across both serialization laws.",
+    "host_name": "rfxcel.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tracelink.com",
+    "name": "Getting Started: EU FMD Guide to Pharma Serialization",
+    "snippet": "The EU Falsified Medicines Directive contains requirements for safety features and verification that details how companies must establish serialization and ...",
+    "host_name": "www.tracelink.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://softgroup.eu",
+    "name": "Global Pharma Serialization Regulations 2026 Tracker",
+    "snippet": "Jun 10, 2026 — Most modern regulations — EU FMD, US DSCSA , Russia CRPT, UAE Tatmeen — require both serialization and downstream verification or trace.",
+    "host_name": "softgroup.eu",
+    "rank": 3,
+    "date": "Jun 10, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.lspedia.com",
+    "name": "Learn About EU's Falsified Medicines Directive",
+    "snippet": "Supply Chain Security Act (DSCSA) requirements. All prescription medicines must carry a serialized 2D DataMatrix and an anti-tampering device. EU FMD is a  ...",
+    "host_name": "www.lspedia.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

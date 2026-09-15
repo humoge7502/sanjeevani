@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://help.sap.com",
+    "name": "Service Plans - SAP AI Core",
+    "snippet": "The SAP AI Core service plan you choose determines pricing , conditions of use, resources, available services, and hosts.",
+    "host_name": "help.sap.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.sap.com",
+    "name": "Metering of SAP BTP GenAI offerings",
+    "snippet": "Apr 3, 2024 — Hi,\n\nI was reading about the new GenAI offerings on BTP to understand their capabilities and metering. I came across a statement in the standard documentation ...",
+    "host_name": "community.sap.com",
+    "rank": 1,
+    "date": "Apr 3, 2024",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "SAP AI Core Provider to support input and ouput pricing",
+    "snippet": "0.00087 · 1 · Less than or equals to 200k tokens per request · 0.00167 · 2 · Greater than 200k tokens per request · 0.00647 · 1 ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://e3mag.com",
+    "name": "The Cost of AI for Existing SAP Customers",
+    "snippet": "Given the heavy AI investments by SAP , OpenAI, Oracle, Anthropic, and others, as well as the currently very low fees and token prices, this is a valid question: ...",
+    "host_name": "e3mag.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discovery-center.cloud.sap",
+    "name": "missionEstimator - SAP Discovery Center",
+    "snippet": "Estimate Platform Service costs using the Service Estimator tool. Explore features like sharing, personalizing, and collaborating on estimates.",
+    "host_name": "discovery-center.cloud.sap",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

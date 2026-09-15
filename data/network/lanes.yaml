@@ -1,0 +1,93 @@
+# SANJEEVANI lanes — 6 commercial corridors.
+#
+# A lane is a *commercial* route: origin -> destination with an ordered list of
+# waypoint nodes. The directed graph A3 traverses is DERIVED from these paths
+# (consecutive node pairs become edges), so the commercial view and the graph
+# view can never drift apart.
+#
+# Exactly one lane is Red Sea-exposed: LANE-MUM-BIO-EU (the biologics ocean
+# export corridor), which is the hero disruption's blast radius.
+
+meta:
+  lane_count: 6
+  red_sea_exposed_count: 1
+
+lanes:
+  - id: LANE-CN-A-API
+    name: Shanghai API ocean corridor
+    origin: SUP-CHN-A
+    destination: PLANT-HYD
+    waypoints: [PORT-JNPT]
+    mode: OCEAN
+    transit_days: 21
+    cost_usd_per_pallet: 1850
+    capacity_pallets: 240
+    temp_class: ambient_15_25
+    red_sea_exposed: false
+    direction: inbound
+
+  - id: LANE-CN-B-API
+    name: Ningbo API ocean corridor
+    origin: SUP-CHN-B
+    destination: PLANT-MUM
+    waypoints: [PORT-JNPT]
+    mode: OCEAN
+    transit_days: 24
+    cost_usd_per_pallet: 2020
+    capacity_pallets: 200
+    temp_class: ambient_15_25
+    red_sea_exposed: false
+    direction: inbound
+
+  - id: LANE-IND-A-API
+    name: Hyderabad domestic API road
+    origin: SUP-IND-A
+    destination: PLANT-HYD
+    waypoints: []
+    mode: ROAD
+    transit_days: 2
+    cost_usd_per_pallet: 410
+    capacity_pallets: 120
+    temp_class: ambient_15_25
+    red_sea_exposed: false
+    direction: inbound
+
+  - id: LANE-EU-A-DS
+    name: Frankfurt biologics drug-substance air corridor
+    origin: SUP-EU-A
+    destination: WH-FRA
+    waypoints: []
+    mode: AIR
+    transit_days: 2
+    cost_usd_per_pallet: 6400
+    capacity_pallets: 60
+    temp_class: 2_8C
+    red_sea_exposed: false
+    direction: inbound
+
+  - id: LANE-MUM-BIO-EU
+    name: Mumbai biologics ocean export (Red Sea corridor)
+    origin: PLANT-MUM
+    destination: CUST-EU-HUB
+    waypoints: [WH-BOM, PORT-JNPT, PORT-SUEZ, WH-FRA]
+    mode: OCEAN_REEFER
+    transit_days: 27
+    cost_usd_per_pallet: 3150
+    capacity_pallets: 90
+    temp_class: 2_8C
+    red_sea_exposed: true
+    direction: outbound
+    note: The only 2-8C ocean export corridor. Cape re-route adds 12 days.
+
+  - id: LANE-HYD-GEN-EU
+    name: Hyderabad generics air export
+    origin: PLANT-HYD
+    destination: CUST-EU-HUB
+    waypoints: [WH-DEL, WH-FRA]
+    mode: AIR
+    transit_days: 4
+    cost_usd_per_pallet: 5400
+    capacity_pallets: 110
+    temp_class: ambient_15_25
+    red_sea_exposed: false
+    direction: outbound

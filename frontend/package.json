@@ -1,0 +1,33 @@
+{
+  "name": "sanjeevani-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SANJEEVANI supply-chain resilience command center (M3 UI).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc -b --noEmit false --emitDeclarationOnly false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --project=chromium-desktop --headed",
+    "test:browser:report": "playwright show-report"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.6.3",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1"
+  }
+}

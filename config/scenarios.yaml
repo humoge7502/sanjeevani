@@ -1,0 +1,83 @@
+# SANJEEVANI scenario library, market parameters and approver roster.
+
+meta:
+  library_version: "1.0.0"
+
+horizons:
+  - days: 3
+    label: "3-day horizon"
+    intent: "Immediate reaction window. Tests whether existing cover absorbs the shock."
+  - days: 10
+    label: "10-day horizon"
+    intent: "Matches the estimated corridor closure. The planning window that matters."
+  - days: 30
+    label: "30-day horizon"
+    intent: "Contractual service-level window. Exposes accumulated service risk."
+
+markets:
+  - id: EU
+    name: European Union
+    service_target: 0.98
+    regulated: true
+  - id: US
+    name: United States
+    service_target: 0.97
+    regulated: true
+  - id: SEA
+    name: South-East Asia
+    service_target: 0.95
+    regulated: true
+
+approvers:
+  - id: meera.iyer
+    name: Meera
+    full_name: Meera Iyer
+    role: supply_planning_head
+    title: Head of Supply Planning
+    note: Primary demo approver and persona owner.
+  - id: rajan.kulkarni
+    name: Rajan
+    full_name: Rajan Kulkarni
+    role: coo
+    title: Chief Operating Officer
+  - id: anil.deshpande
+    name: Anil
+    full_name: Anil Deshpande
+    role: planner
+    title: Senior Supply Planner
+
+# Disruption parameter library. A2 reads the verifying signal's claim and clamps
+# it against these bounds; these are the values the demo actually uses.
+disruption_library:
+  - id: DIS-REDSEA-CLOSURE
+    event_type: PORT_CLOSURE
+    target: PORT-SUEZ
+    corridor: RED_SEA
+    severity: HIGH
+    duration_days: 10
+    transit_delay_days: 12
+    capacity_factor: 0.15
+    narrative: >
+      Bab-el-Mandeb transits suspended. Cape re-routing adds roughly twelve days
+      to south-Asia to Europe ocean services.
+  - id: DIS-COLDCHAIN-EXCURSION
+    event_type: COLD_CHAIN_EXCURSION
+    target: SHIP-001
+    lane: LANE-MUM-BIO-EU
+    severity: HIGH
+    temp_limit_max_c: 8.0
+    narrative: >
+      A 2-8C biologics consignment waited at the chokepoint during the closure
+      and breached its excursion limit, peaking at 11.4C.
+
+hero_scenario:
+  id: SCN-HERO-001
+  name: Red Sea corridor closure + biologics cold-chain excursion
+  feed_file: data/events/hero_feeds.yaml
+  disruption_ids: [DIS-REDSEA-CLOSURE, DIS-COLDCHAIN-EXCURSION]
+  primary_horizon_days: 10
+  narrative: >
+    A maritime corridor closure and a cold-chain excursion land at the same
+    moment. The network must sense, verify, size the damage, take an optimized
+    recovery plan from M2, prove it compliant, get named human authority, post
+    it to SAP-shaped systems, and learn from the outcome.

@@ -1,0 +1,21 @@
+{
+  "contract": "event",
+  "version": "1.0.0 (frozen per workflow PDF Ch.3)",
+  "example": {
+    "event_id": "EVT-001",
+    "type": "COLD_CHAIN_EXCURSION",
+    "severity": "HIGH",
+    "confidence": 0.96,
+    "timestamp": "ISO-8601",
+    "source": "IoT"
+  },
+  "fields": [
+    "event_id (str, unique)",
+    "type (enum e.g. COLD_CHAIN_EXCURSION, PORT_CLOSURE, TARIFF_SHOCK)",
+    "severity (enum LOW/MEDIUM/HIGH/CRITICAL)",
+    "confidence (float 0-1)",
+    "timestamp (ISO-8601)",
+    "source (e.g. IoT, News, Weather, Port, Tariff)"
+  ],
+  "rule": "No member invents a private schema; stable field names; version on breaking change."
+}

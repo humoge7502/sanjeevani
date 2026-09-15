@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://gdeltproject.org",
+    "name": "Data: Querying, Analyzing and Downloading",
+    "snippet": "The GDELT Analysis Service is a free cloud-based service that offers a variety of tools and services to allow you to visualize, explore, and export both the ... Read more",
+    "host_name": "gdeltproject.org",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.gdeltproject.org",
+    "name": "GDELT DOC 2.0 API Debuts!",
+    "snippet": "Jun 20, 2017 — We are incredibly excited to announce today the debut of the new GDELT 2.0 DOC API , which is our full text search API. Read more",
+    "host_name": "blog.gdeltproject.org",
+    "rank": 1,
+    "date": "Jun 20, 2017",
+    "favicon": ""
+  },
+  {
+    "url": "https://pypi.org",
+    "name": "newsfeed",
+    "snippet": "This will: Query GDELT Events database; Extract unique URLs from SOURCEURL column; Download full text for each article; Add full text to FULLTEXT column; Export ... Read more",
+    "host_name": "pypi.org",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://datahub.aalto.fi",
+    "name": "The GDELT Database",
+    "snippet": "The GDELT Database, or the Global Database of Events, Language, and Tone, is a vast and continually updated repository of global news media data . Read more",
+    "host_name": "datahub.aalto.fi",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.ons.gov.uk",
+    "name": "Global Database of Events, Language and Tone (GDELT)",
+    "snippet": "Jan 9, 2020 — GDELT has two main databases: the Event Database and the Global Knowledge Graph (GKG). The Event Database records individual events , aggregating ... Read more",
+    "host_name": "www.ons.gov.uk",
+    "rank": 4,
+    "date": "Jan 9, 2020",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.tandfonline.com",
+    "name": "Lifting the Veil on the Use of Big Data News Repositories",
+    "snippet": "by M Hoffmann · 2022 · Cited by 27 — GDELT describes itself as a free and open platform , that: monitors the world's broadcast, print, and web news from nearly every corner of every ...",
+    "host_name": "www.tandfonline.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  }
+]

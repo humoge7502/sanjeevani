@@ -1,0 +1,25 @@
+{
+  "contract": "recovery_plan",
+  "version": "1.0.0 (frozen per workflow PDF Ch.3)",
+  "example": {
+    "plan_id": "PLAN-001",
+    "strategy": "REROUTE_MUMBAI_AIR",
+    "cost": 0,
+    "service_level": 0,
+    "resilience_score": 0,
+    "temperature_risk": 0,
+    "recovery_time_hours": 0,
+    "compliance_status": "PENDING"
+  },
+  "fields": [
+    "plan_id (str, unique)",
+    "strategy (e.g. WAIT, REROUTE_MUMBAI_AIR, EMERGENCY_SOURCE)",
+    "cost (number)",
+    "service_level (number 0-1)",
+    "resilience_score (number)",
+    "temperature_risk (number 0-1)",
+    "recovery_time_hours (number)",
+    "compliance_status (e.g. PENDING/PASSED/FAILED)"
+  ],
+  "rule": "No member invents a private schema; stable field names; version on breaking change."
+}

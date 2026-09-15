@@ -1,0 +1,31 @@
+{
+  "name": "sanjeevani",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SANJEEVANI — governed closed-loop recovery for pharmaceutical supply networks (M1 + M3).",
+  "scripts": {
+    "setup": "python -m pip install -r requirements-dev.txt && npm --prefix frontend install",
+
+    "api": "python -m uvicorn backend.api.app:app --host 127.0.0.1 --port 8787 --reload",
+    "web": "npm --prefix frontend run dev",
+    "dev": "echo \"Run 'npm run api' and 'npm run web' in two terminals (see docs/demo-runbook.md).\"",
+
+    "demo": "python scripts/demo.py",
+    "demo:gate": "python scripts/demo.py --to-gate",
+    "demo:json": "python scripts/demo.py --json",
+    "reset": "python scripts/reset.py",
+    "health": "python scripts/health.py",
+
+    "test": "python -m pytest && npm --prefix frontend run test",
+    "test:api": "python -m pytest",
+    "test:web": "npm --prefix frontend run test",
+    "test:contract": "python -m pytest tests/contract -m contract",
+    "test:redteam": "python -m pytest tests/redteam -m redteam",
+    "test:e2e": "python -m pytest tests/e2e -m e2e",
+    "test:browser": "npm --prefix frontend run test:browser",
+
+    "build": "npm --prefix frontend run build",
+    "typecheck": "python -m compileall -q backend scripts && npm --prefix frontend exec tsc -b",
+    "lint": "python -m compileall -q backend scripts"
+  }
+}

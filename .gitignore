@@ -1,0 +1,42 @@
+# ---- secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- runtime artifacts -----------------------------------------------------
+runtime/
+*.jsonl
+
+# ---- python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.coverage
+htmlcov/
+
+# ---- node ------------------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# ---- browser test artifacts ------------------------------------------------
+# Traces, videos and failure screenshots are large, machine-specific and
+# reproducible from a test run. They must never be committed.
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+
+# ---- editors / os ----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.swp

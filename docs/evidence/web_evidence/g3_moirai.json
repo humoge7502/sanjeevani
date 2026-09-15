@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://www.salesforce.com",
+    "name": "Fine-Tuning Time-Series Foundation Models on Business",
+    "snippet": "Jan 8, 2026 — Moirai's broad pre-training provides a strong foundation , but operational-grade accuracy requires adapting the model to the distinctive patterns ... Read more",
+    "host_name": "www.salesforce.com",
+    "rank": 0,
+    "date": "Jan 8, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co",
+    "name": "Salesforce/moirai-2.0-R-small",
+    "snippet": "foundation models time series . License : cc-by-nc-4.0. Moirai 2.0 is a decoder-only universal time series forecasting transformer model",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Unified Training of Universal Time Series Forecasting",
+    "snippet": "License: MIT Uni2TS is a PyTorch based library for research and applications related to Time Series Forecasting. It provides a unified framework for large- ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://arxiv.org",
+    "name": "Moirai-MoE: Empowering Time Series Foundation Models",
+    "snippet": "by X Liu · 2024 · Cited by 222 — Time series foundation models have demonstrated impressive performance as zero-shot forecasters. However, achieving effectively unified training ... Read more",
+    "host_name": "arxiv.org",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.datasciencewithmarco.com",
+    "name": "Hands-On with Moirai: A Foundation Forecasting Model by",
+    "snippet": "Aug 19, 2024 — Moirai is an open-source foundation forecasting model developed by Salesforce that can perform zero-shot forecasting a wide variety of time ... Read more",
+    "host_name": "www.datasciencewithmarco.com",
+    "rank": 4,
+    "date": "Aug 19, 2024",
+    "favicon": ""
+  }
+]

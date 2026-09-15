@@ -1,0 +1,29 @@
+[
+  {
+    "url": "https://open-meteo.com",
+    "name": "Historical Forecast API",
+    "snippet": "The Historical Forecast API archives comprehensive data, including atmospheric pressure levels, from all accessible weather forecast models. Depending on the ... Read more",
+    "host_name": "open-meteo.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "Open-Meteo Weather API",
+    "snippet": "Open-Meteo is an open-source weather API that offers free access for non-commercial use . No API key is required, so you can start using it immediately. Read more",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openweathermap.org",
+    "name": "Weather API",
+    "snippet": "OpenWeather provides global weather data APIs for current conditions, forecasts, historical archives, air quality, maps, and industry-specific use cases. Read more",
+    "host_name": "openweathermap.org",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  }
+]

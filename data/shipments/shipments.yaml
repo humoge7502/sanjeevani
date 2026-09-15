@@ -1,0 +1,134 @@
+# SANJEEVANI in-flight consignments — the objects A3 iterates over.
+#
+# `current_node` is where the consignment sits at t0 of the hero scenario. A3
+# intersects this with the disruption to decide exposure; nothing here is
+# random, so the impact numbers are byte-identical on every run.
+#
+# `telemetry_profile` selects the scripted IoT trace in data/telemetry/.
+
+meta:
+  shipment_count: 8
+  red_sea_lane: LANE-MUM-BIO-EU
+  hero_shipment: SHIP-001
+
+shipments:
+  - id: SHIP-001
+    sku_id: BIO-002
+    lane_id: LANE-MUM-BIO-EU
+    market: EU
+    units: 4200
+    pallets: 14
+    origin: PLANT-MUM
+    current_node: PORT-SUEZ
+    destination: CUST-EU-HUB
+    temp_class: 2_8C
+    telemetry_profile: cold_excursion_hero
+    depart_day: 0
+    eta_day: 12
+    criticality: critical
+    note: Hero consignment — mid-transit at the chokepoint when it closes.
+
+  - id: SHIP-002
+    sku_id: BIO-001
+    lane_id: LANE-MUM-BIO-EU
+    market: EU
+    units: 9000
+    pallets: 22
+    origin: PLANT-MUM
+    current_node: WH-BOM
+    destination: CUST-EU-HUB
+    temp_class: 2_8C
+    telemetry_profile: cold_nominal
+    depart_day: 0
+    eta_day: 9
+    criticality: critical
+
+  - id: SHIP-003
+    sku_id: BIO-002
+    lane_id: LANE-MUM-BIO-EU
+    market: US
+    units: 2600
+    pallets: 9
+    origin: PLANT-MUM
+    current_node: PLANT-MUM
+    destination: CUST-EU-HUB
+    temp_class: 2_8C
+    telemetry_profile: cold_nominal
+    depart_day: 1
+    eta_day: 14
+    criticality: critical
+
+  - id: SHIP-004
+    sku_id: BIO-001
+    lane_id: LANE-MUM-BIO-EU
+    market: SEA
+    units: 5400
+    pallets: 13
+    origin: PLANT-MUM
+    current_node: PORT-JNPT
+    destination: CUST-EU-HUB
+    temp_class: 2_8C
+    telemetry_profile: cold_drift
+    depart_day: 0
+    eta_day: 10
+    criticality: critical
+
+  - id: SHIP-005
+    sku_id: BIO-001
+    lane_id: LANE-MUM-BIO-EU
+    market: EU
+    units: 7200
+    pallets: 18
+    origin: PLANT-MUM
+    current_node: WH-FRA
+    destination: CUST-EU-HUB
+    temp_class: 2_8C
+    telemetry_profile: cold_nominal
+    depart_day: 0
+    eta_day: 2
+    criticality: critical
+
+  - id: SHIP-006
+    sku_id: GEN-001
+    lane_id: LANE-HYD-GEN-EU
+    market: EU
+    units: 480000
+    pallets: 24
+    origin: PLANT-HYD
+    current_node: WH-DEL
+    destination: CUST-EU-HUB
+    temp_class: ambient_15_25
+    telemetry_profile: ambient_nominal
+    depart_day: 0
+    eta_day: 3
+    criticality: standard
+
+  - id: SHIP-007
+    sku_id: GEN-003
+    lane_id: LANE-HYD-GEN-EU
+    market: US
+    units: 260000
+    pallets: 16
+    origin: PLANT-HYD
+    current_node: PLANT-HYD
+    destination: CUST-EU-HUB
+    temp_class: ambient_15_25
+    telemetry_profile: ambient_nominal
+    depart_day: 1
+    eta_day: 5
+    criticality: standard
+
+  - id: SHIP-008
+    sku_id: GEN-007
+    lane_id: LANE-HYD-GEN-EU
+    market: SEA
+    units: 140000
+    pallets: 11
+    origin: PLANT-HYD
+    current_node: WH-FRA
+    destination: CUST-EU-HUB
+    temp_class: ambient_15_25
+    telemetry_profile: ambient_nominal
+    depart_day: 0
+    eta_day: 2
+    criticality: standard

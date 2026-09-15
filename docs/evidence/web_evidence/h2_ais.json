@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://opendata.stackexchange.com",
+    "name": "Free source of AIS data (API)",
+    "snippet": "May 25, 2019 — The automatic identification system (AIS) is an automatic tracking system that uses transponders on ships to locate them. There are also databases that ...",
+    "host_name": "opendata.stackexchange.com",
+    "rank": 0,
+    "date": "May 25, 2019",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com",
+    "name": "aisstream/aisstream",
+    "snippet": "aisstream.io is a free api to stream global AIS data via websockets. With our AIS data stream you are able to track vessel position, identity, port calls and ...",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  }
+]
