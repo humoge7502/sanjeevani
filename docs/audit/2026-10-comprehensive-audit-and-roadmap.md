@@ -459,6 +459,9 @@ work. Each has tests; `scripts/verify.sh` remains green.
 | W8 Frontend depth | `frontend/src/components/ErrorBoundary.tsx`; `Network.snapshot(closed_nodes=…)` | `tsc -b` + production build clean; `closed` is now derived rather than a constant |
 | W9 DES cross-check (AF-1) | `backend/m2/des.py`, `config/des.yaml`, `docs/m2-des.md`, ADR 0015, provider-aware M2 surfaces in the UI | 35 unit tests: determinism asserted against the source, interval-union semantics, berth contention, topology-derived arrivals, the 70.8 h WAIT blind spot, advisory-vs-constraint split; the recommended plan is provably unchanged |
 | W10 Learning-shape fix | `backend/learning/reconcile.py` (PENDING scorecard carries the RECONCILED shape), `scripts/demo.py` (status-aware learning section), `frontend/src/components/AuditLearningPanels.tsx` (status badge), `tests/unit/test_learning.py` | 3 unit tests: a plan without a seeded observation reports PENDING with zeros and an explanatory method note; the two scorecard shapes expose identical keys; the honesty clause (no actual invented) |
+| W11 netguard | `backend/security/netguard.py`, wiring in `backend/agents/feeds/base.py` + `backend/agents/narrative.py`, `config/settings.yaml`, `tests/unit/test_netguard.py` | 21 tests: every refused destination class, rebind-shaped resolution, the allow_private opt-out keeping the scheme rule, both real callers refusing through their own error types |
+| W12 attestation (AF-4 foundation) | `backend/audit/attestation.py`, `scripts/attest_ledger.py`, `tests/unit/test_attestation.py` | 15 tests: round-trip, six tamper classes refused, append-compatible prefix rule, CLI sign/verify/offline, broken-chain and truncation refusal |
+| W13 stress harness (AF-5) | `scripts/stress.py`, `tests/unit/test_stress.py` | 3 unit tests; the 6-cell default matrix holds per-cell determinism and admissibility |
 
 ### Corrections to this document's own predictions
 

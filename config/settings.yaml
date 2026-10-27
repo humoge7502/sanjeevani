@@ -46,6 +46,16 @@ narrative:
   #: Hard cap on the displayed narrative, applied by sanitise().
   max_characters: 600
 
+netguard:
+  # Outbound-URL guard (backend/security/netguard.py). Every dial-out in the
+  # system -- the signal-feed adapters and the narrative seam -- validates its
+  # destination against this module before a request is made: http/https only,
+  # and the host must resolve public. This flag is the ONE documented opt-out
+  # for local development (aiming the narrative seam at a loopback model server
+  # such as Ollama). Off by default; a private destination is a loud failure,
+  # never a silent success.
+  allow_private_endpoints: false
+
 sensing:
   # A1 -> A2 handoff gate. Below this the candidate stays on the watchlist.
   escalate_confidence: 0.60

@@ -140,6 +140,8 @@ Every command below exists in this repository. Nothing is aspirational.
 | `SANJEEVANI_PLAN_PROVIDER=optimizer python scripts/demo.py` | The same loop with M2's **real optimizer** instead of the fixture |
 | `python scripts/make_identity.py --demo` | Regenerate the demo account roster (`config/identity.yaml`) |
 | `python scripts/train_forecasting_model.py` | Retrain the disruption-duration model (needs `requirements-ml.txt`) |
+| `python scripts/stress.py` | **Scenario stress sweep**: optimizer × horizons, determinism + admissibility per cell |
+| `python scripts/attest_ledger.py attest` | **Sign the ledger head** (HMAC attestation; `verify` confirms it) |
 | `python scripts/reset.py` | Clear ledger, approvals and SAP mock logs |
 | `bash scripts/dev.sh` | Backend + frontend together (dev servers, HMR) |
 | `python scripts/serve.py` | **Production entrypoint**: serves the API *and* the built UI on one port |
@@ -147,7 +149,7 @@ Every command below exists in this repository. Nothing is aspirational.
 | `bash scripts/verify.sh` | Everything: nine gates — health, compile, lint, types, tests, browser, build |
 | `python -m ruff check .` | Python lint (also a gate in `verify.sh`, or `npm run lint`) |
 | `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`, or `npm run typecheck`) |
-| `python -m pytest` | Backend suite (396 tests) |
+| `python -m pytest` | Backend suite (439 tests) |
 | `python -m pytest -m redteam` | Adversarial governance- and auth-bypass suite |
 | `python -m pytest -m contract` | Frozen-contract suite |
 | `npm --prefix frontend run test` | Frontend unit tests (46) |
@@ -194,7 +196,7 @@ sanjeevani/
 │   └── orchestrator.py         the loop coordinator
 ├── frontend/                   React + TypeScript command center
 │   └── e2e/                    Playwright: hero journey · governance · axe-core a11y
-├── tests/                      396 tests: unit · contract · integration · e2e · redteam
+├── tests/                      439 tests: unit · contract · integration · e2e · redteam
 ├── scripts/                    health · demo · reset · dev · verify · serve ·
 │                               make_identity · train_forecasting_model
 ├── Dockerfile                  multi-stage build -> one image (API + built UI)
@@ -258,6 +260,7 @@ one, and the machine refuses what governance refuses.
 | [`docs/competitive-benchmark.md`](docs/competitive-benchmark.md) | Everstream · Kinaxis · SAP IBP, vendor claims labelled |
 | [`docs/judge-defense.md`](docs/judge-defense.md) | The hard questions and the honest answers |
 | [`docs/audit/2026-10-comprehensive-audit-and-roadmap.md`](docs/audit/2026-10-comprehensive-audit-and-roadmap.md) | **The audit that produced the changes below**: every issue with severity, effort and dependencies |
+| [`docs/audit/2026-10-28-strategic-analysis.md`](docs/audit/2026-10-28-strategic-analysis.md) | **The post-completion re-score**: what is now defensible, what is next, with the same severity/effort discipline |
 | [`docs/evidence/`](docs/evidence/) | **The real-data package**: 477 records with page-level provenance, the six frozen schemas, and the raw JSON of all 58 web searches |
 | [`docs/decisions/`](docs/decisions/) | Fifteen ADRs, each with its downsides listed |
 
@@ -401,7 +404,7 @@ the running container.
 ## Testing
 
 ```
-396 passed  (backend: unit · contract · integration · e2e · red team)
+439 passed  (backend: unit · contract · integration · e2e · red team)
  46 passed  (frontend: 30 pure logic · 16 static accessibility guards)
  48 passed  (browser: 24 in real Chromium × 2 viewports)
 ```

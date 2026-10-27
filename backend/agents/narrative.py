@@ -197,17 +197,21 @@ def _remote_config() -> dict[str, Any]:
 
 def _post_json(url: str, payload: dict[str, Any], *, headers: dict[str, str], timeout: float) -> Any:
     # The endpoint is operator configuration and no request data reaches it, but
-    # the scheme is validated anyway: a narrative narrator is an HTTP(S) client
-    # by definition, and a tampered config must not reach file:// or ftp://.
-    # The transport is http.client rather than urlopen: the connection target is
-    # the validated host, only POST is spoken, and there is no implicit
-    # redirect/proxy behaviour to audit.
+    # the netguard still vets the destination before any request: a tampered
+    # config must not aim the narrator at this system's own surface or at a
+    # cloud-metadata endpoint. Local-development loopback endpoints are the one
+    # documented opt-out (netguard.allow_private_endpoints in settings.yaml).
     import http.client
     import urllib.parse
 
+    from backend.config import settings as app_settings
+    from backend.security import netguard
+
+    allow_private = bool(
+        app_settings().get("netguard", {}).get("allow_private_endpoints", False)
+    )
+    netguard.validate_public_http_url(url, allow_private=allow_private)
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise RuntimeError(f"narrative.endpoint scheme must be http or https, got {url!r}")
     body = json.dumps(payload).encode("utf-8")
     connection: http.client.HTTPConnection
     if parsed.scheme == "https":

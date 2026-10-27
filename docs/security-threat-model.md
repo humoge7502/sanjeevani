@@ -80,6 +80,25 @@ with `--account "id:password:role:tenant:Full Name:Title"`.
 | S2 | An actor invents an id with no role and approves | **Mitigated** | Unknown ids resolve to `role: None`, and `role_satisfies(None, "coo")` is `False`. Asserted by `test_a04_unknown_actor_cannot_approve`. |
 | S3 | A senior role implies a narrower one ("the COO can approve anything") | **Mitigated by design** | Role matching is an **exact equality** check (`backend/governance/approval.py:218`). A more senior role does *not* satisfy a narrower requirement, so the model refuses more often than a seniority guess would — the safe direction. `test_role_matching_is_exact_not_seniority_based`, and `test_role_model_agrees_with_the_governance_state_machine` asserts the token layer implements the same rule. |
 
+## Outbound calls and the audit anchor (2026-10-28)
+
+Two additions to the mitigations below, both tested:
+
+* **Every outbound HTTP call passes `backend/security/netguard.py`** — http/https
+  only, and the host must resolve to a public address (IP literals classified
+  directly; names resolved and every answer checked, which covers a public name
+  pointed at private space). The one opt-out, `netguard.allow_private_endpoints`,
+  exists for aiming the narrative seam at a loopback model server during
+  development and keeps the scheme rule even then. Known limit, accepted at this
+  tier: DNS is resolved at validation time, so a resolver that changes its answer
+  between validation and connection is out of scope.
+* **The ledger head can be signed** (`scripts/attest_ledger.py`, HMAC-SHA256 over
+  the verified head). The attestation's strength is exactly the signing key's
+  storage: the key must live OFF the ledger volume, and the threat this mitigates
+  is a full ledger rewrite with recomputed hashes, which the chain alone cannot
+  detect. It is not a timestamp authority; the `kind` field is the seam for
+  RFC-3161 later.
+
 ## T — Tampering
 
 | # | Threat | Status | Control |

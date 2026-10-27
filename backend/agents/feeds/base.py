@@ -31,6 +31,9 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+from backend.config import settings as app_settings
+from backend.security import netguard
+
 #: A feed fetch is bounded. A hanging external service must not hang the loop.
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
@@ -169,14 +172,17 @@ class FeedAdapter(abc.ABC):
         if not self.endpoint:
             raise FeedUnavailable(f"{self.feed_id}: no endpoint configured")
         # The endpoint is configuration, not request input, so this is not an
-        # SSRF path: no caller-supplied string reaches the URL. Scheme validation
-        # is still enforced: urllib would happily serve file:// or ftp:// from a
-        # tampered config, and a feed adapter is an HTTP client by definition.
-        if urllib.parse.urlparse(self.endpoint).scheme not in ("http", "https"):
-            raise FeedUnavailable(
-                f"{self.feed_id}: endpoint scheme must be http or https "
-                f"(got {self.endpoint.split(':', 1)[0] + ':' if ':' in self.endpoint else 'none'})"
-            )
+        # SSRF path: no caller-supplied string reaches the URL. The netguard
+        # still vetoes non-HTTP schemes and hosts that resolve private, so a
+        # tampered config cannot aim the adapter at this system's own surface or
+        # at a cloud-metadata endpoint.
+        allow_private = bool(
+            app_settings().get("netguard", {}).get("allow_private_endpoints", False)
+        )
+        try:
+            netguard.validate_public_http_url(self.endpoint, allow_private=allow_private)
+        except netguard.DisallowedHostError as exc:
+            raise FeedUnavailable(f"{self.feed_id}: {exc}") from exc
         params = {k: v for k, v in params.items() if v is not None}
         url = f"{self.endpoint}?{urllib.parse.urlencode(params)}" if params else self.endpoint
 

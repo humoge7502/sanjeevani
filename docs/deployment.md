@@ -92,6 +92,7 @@ change an impact calculation through an environment variable.
 | `SANJEEVANI_REPO_ROOT` | parent of `backend/` | Override if `config/` and `data/` are not siblings of the package. |
 | `SANJEEVANI_OFFLINE` | `true` | `false`/`0`/`no` disables the explicit offline marking. |
 | `SANJEEVANI_PLAN_PROVIDER` | `fixture` | `fixture` (M2 stand-in, byte-reproducible demo numbers), `optimizer` (the real solve: PuLP/CBC MILP cross-checked by exhaustive enumeration, evaluated on the deterministic digital twin — see [m2-optimizer.md](m2-optimizer.md)), `unavailable` (fails closed, used by the red-team suite). |
+| `SANJEEVANI_ATTESTATION_KEY` | unset | Optional. When set, `python scripts/attest_ledger.py attest` signs the ledger head (HMAC); `verify` confirms an attestation against the live chain. **Keep this key OFF the ledger volume** — the anchor is worth exactly the key's separation from the ledger. A cron line for a nightly attestation: `0 2 * * * cd /app && SANJEEVANI_ATTESTATION_KEY=… python scripts/attest_ledger.py attest >> runtime/attestations/cron.log 2>&1`. |
 | `SANJEEVANI_M2_DES` | `false` | The discrete-event cross-check always runs and reports its verdict beside the twin's ([m2-des.md](m2-des.md)). `true` additionally makes leftover corridor traffic past the recovery ceiling — or any berth contention — a hard constraint violation. |
 
 A malformed value raises at startup rather than falling back to the default. A
