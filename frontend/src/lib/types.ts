@@ -133,6 +133,36 @@ export interface ImpactPayload {
   probability_weight?: number;
 }
 
+export interface FeedStatus {
+  enabled: boolean;
+  mode: string;
+  note?: string;
+  scripted_feed?: string;
+  signals?: number;
+  sources_loaded?: number;
+  sources_configured?: number;
+  adapters_configured?: string[];
+  adapters?: Array<{
+    feed_id: string;
+    name: string;
+    source_class: string;
+    status: string;
+    reason: string;
+    signals?: number;
+    origin?: string;
+  }>;
+}
+
+export interface NarrativeStatus {
+  enabled: boolean;
+  narrator: string;
+  known?: string[];
+  would_call_network?: boolean;
+  reachable?: boolean;
+  note?: string;
+  error?: string;
+}
+
 export interface ScenarioPayload {
   scenario_id: string;
   event_id: string;
@@ -145,6 +175,12 @@ export interface ScenarioPayload {
   confidence: number;
   affected_lanes: string[];
   narrative: string;
+  narrative_source?: {
+    narrator: string;
+    applied: boolean;
+    fallback_reason: string | null;
+    characters?: number;
+  };
   parameters_source: {
     event_id: string;
     origin: string;
@@ -440,12 +476,108 @@ export interface LedgerEntry {
   prev_hash: string;
 }
 
+/* --------------------------------------------- M2 optimizer evidence — the
+ * solver's own trace, surfaced verbatim when the optimizer provider is active.
+ * Typed only as far as the UI renders it; everything else passes through the
+ * Evidence JSON viewer unchanged. */
+
+export interface M2DesSummary {
+  clearance_day: number;
+  recovery_hours: number;
+  queue_peak: Record<string, number>;
+  mean_wait_days: number;
+  participants: Array<{ shipment_id: string } & Record<string, unknown>>;
+  clears_all_corridor_traffic: boolean;
+}
+
+export interface M2Counterfactual {
+  uniform_policy: string;
+  label: string;
+  cost_usd: number;
+  expected_unrecovered_usd: number;
+  total_economic_impact_usd: number;
+  service_level: number;
+  temperature_risk: number;
+  executable: boolean;
+  violations: string[];
+  des?: M2DesSummary;
+}
+
+export interface M2DesCrossCheck {
+  twin_recovery_hours: number;
+  des_recovery_hours: number;
+  delta_hours: number;
+  tolerance_hours: number;
+  verdict: "agrees" | "des_slower" | "des_faster" | "not_applicable";
+  contradicts: boolean;
+  note: string;
+}
+
+export interface M2Evidence {
+  method: string;
+  labelled_as: string;
+  solver: string;
+  catalogue_version: string;
+  decision_space: {
+    combinations: number;
+    exhaustive_limit: number;
+    hub_ceiling_enforced: boolean;
+  } & Record<string, unknown>;
+  objective: {
+    expression: string;
+    value_of_risk_weight: number;
+    selected_objective_value: number;
+  };
+  constraints: {
+    max_budget_usd: number;
+    min_service_level: number;
+    max_temperature_risk: number;
+    max_recovery_hours: number;
+    violations: string[];
+    feasibility: string;
+  };
+  hub_inventory?: Record<string, unknown>;
+  verification: {
+    exhaustive_search_performed: boolean;
+    milp_available: boolean;
+    milp_agrees_with_exhaustive: boolean | null;
+    milp_solver: string;
+    milp_note: string;
+  } & Record<string, unknown>;
+  pareto_frontier: Array<{
+    strategy: string;
+    cost_usd: number;
+    expected_unrecovered_usd: number;
+    service_level: number;
+    recovery_time_hours: number;
+    feasible: boolean;
+  } & Record<string, unknown>>;
+  counterfactuals: M2Counterfactual[];
+  des: {
+    model_version: string;
+    enabled_as_constraint: boolean;
+    contradiction_tolerance_hours: number;
+    recommended_plan: {
+      clearance_day: number;
+      recovery_hours: number;
+      queue_peak: Record<string, number>;
+      events_processed: number;
+      mean_wait_days: number;
+      max_wait_days: number;
+      participants: Array<{ shipment_id: string } & Record<string, unknown>>;
+    } & Record<string, unknown>;
+    cross_check: M2DesCrossCheck;
+    violations: string[];
+  };
+}
+
 export interface DemoState {
   run_id: string | null;
   started_at: string | null;
   scenario_clock: string;
   offline: boolean;
   m1: M1Snapshot | null;
+  m2: M2Evidence | null;
   plan: RecoveryPlanPayload | null;
   ranked_plans: RecoveryPlanPayload[];
   plan_provider: {
@@ -512,8 +644,14 @@ export interface DemoState {
     simulated: string[];
     mocked: string[];
     not_implemented: string[];
+    m2_status: { provider_mode: string; statement: string };
+    feeds_status: FeedStatus;
+    narrative: NarrativeStatus;
+    forecasting: { available: boolean; enabled: boolean } & Record<string, unknown>;
     ai_usage: string;
   };
+  feeds: FeedStatus;
+  narrative: NarrativeStatus;
   approvers: Array<{
     id: string;
     name: string;

@@ -80,29 +80,42 @@ value. A mock that contradicted the network model would be indefensible in Q&A �
 "your risk service says HIGH, your network says 0.18". Unknown supplier ids fall
 back to a derived score and the response states which happened.
 
-### `RecoveryPlan` — the M2 fixture
+### `RecoveryPlan` — the M2 boundary
 
-⚠️ **No MILP is solved. No digital twin is replayed. No cost is optimized.**
+⚠️ **This is the one boundary whose status depends on configuration.** Check
+`GET /api/mock-boundaries` → `m2_status.provider_mode`.
 
-`backend/m2/fixtures/recovery_plans.yaml` contains hand-set plans for three
-strategies (WAIT, REROUTE VIA MUMBAI + AIR, EMERGENCY SOURCE). Every plan object
-carries `source="fixture"`, which the UI renders as a badge, and
-`GET /api/state` includes a `plan_provider` disclosure block.
+| `SANJEEVANI_PLAN_PROVIDER` | What produces the plan |
+|---|---|
+| `fixture` (default) | `backend/m2/fixtures/recovery_plans.yaml` — hand-set plans for `WAIT`, `REROUTE VIA MUMBAI + AIR` and `EMERGENCY SOURCE`. Every object carries `source="fixture"`. |
+| `optimizer` | `backend/m2/optimizer.py` — a real multi-objective binary program solved by PuLP/CBC, cross-checked by exhaustive enumeration, evaluated by the deterministic digital twin. `source="optimizer"`. |
+| `unavailable` | Fails closed — used by the red-team suite to prove the loop stops rather than inventing a plan. |
 
-**Replacement procedure** (M3 needs no changes):
+With the **optimizer** selected, the plan is derived rather than hand-set, and
+`GET /api/state` → `m2` returns the full solver trace: the decision space, the
+objective, the binding constraints, the Pareto frontier, the uniform-policy
+counterfactuals, whether the MILP agreed with the exhaustive search, and the
+discrete-event cross-check on the recommended plan and every counterfactual.
 
-```python
-# 1. Implement the Protocol in backend/m2/
-class OptimizerRecoveryPlanProvider:
-    def plan_for_event(self, event_id, scenario_id=None) -> RecoveryPlan: ...
-    def ranked_plans(self, event_id, scenario_id=None) -> list[RecoveryPlan]: ...
+What remains true in **both** modes:
 
-# 2. Register it in get_provider() behind SANJEEVANI_PLAN_PROVIDER=optimizer
-#    (currently raises NotImplementedError with an explanatory message)
+* **The fixture is still the default**, so the demo's byte-reproducible numbers,
+  frozen clock and documented ledger-hash guarantee are untouched. The optimizer is
+  opt-in. See [ADR 0010](decisions/0010-m2-is-implemented-and-opt-in.md).
+* **The action catalogue is configured.** `config/recovery_options.yaml` holds the
+  options' coefficients — this project's engineering estimates, not measured
+  history. The *space* is configured; the *outcome of choosing it* is computed.
+* **The queueing cross-check is a cross-check.** A deterministic SimPy DES
+  (`backend/m2/des.py`) shadows every solve and reports where it disagrees with
+  the closed-form twin — the two are never averaged, and the DES only joins the
+  hard constraints when `m2.des.enabled` is true. See
+  [`m2-des.md`](m2-des.md) and
+  [ADR 0015](decisions/0015-the-des-is-a-cross-check-not-a-second-opinion.md).
+* **A better plan is not a shorter path.** The optimizer's plan faces exactly the
+  same approval gate as the fixture's.
+  `test_a18_optimizer_mode_produces_a_governed_plan` asserts it.
 
-# 3. Run python -m pytest -m contract && python -m pytest -m e2e
-#    Nothing in M3 should need editing. If it does, the boundary leaked.
-```
+Full detail: [`m2-optimizer.md`](m2-optimizer.md).
 
 ---
 
@@ -110,15 +123,14 @@ class OptimizerRecoveryPlanProvider:
 
 | Item | Why it is absent | Where it belongs |
 |---|---|---|
-| M2 digital twin (SimPy) | Member 2's ownership | M2 |
-| Recovery optimization (Pyomo/HiGHS) | Member 2's ownership | M2 |
-| Routing (OR-Tools) | Member 2's ownership | M2 |
+| Routing / scheduling (OR-Tools) | Lanes are selected from the seeded network, not synthesised | M2 |
+| Multi-echelon inventory *optimisation* | The contended hub ceiling is modelled (`backend/m2/inventory.py`); reorder policies, safety stock and echelon holdback are not | M2 |
 | Real SAP connectors (BTP, OData) | Weeks of work for a story judges already reward when the shape is faithful | Layer 3 |
-| Any trained forecasting model | Zero-shot / scripted inputs are better and faster for an MVP | Layer 2 |
 | GNN cascade module | Explicitly deferred research | Layer 2 |
-| Authentication / authorization | `resolve_actor()` is the seam; a real deployment needs OIDC + a directory | Layer 3 |
-| Multi-tenancy | Out of MVP scope | Layer 3 |
+| Authentication **in the demo** | It exists and is complete; it is off by default so the offline demo, the browser suite and the container smoke test are unchanged. Turn it on with `SANJEEVANI_AUTH_ENABLED=true` | Layer 3 |
+| Multi-tenancy isolation in the approval registry | A tenant claim exists on the principal and on ledger records; the registry is still process-global | Layer 3 |
 | Autonomous threshold re-calibration | Calibration signals are emitted for **human** review, deliberately | Layer 2 |
+| Rolling-horizon re-optimisation | One solve per event, not a receding loop | M2 |
 
 ---
 
@@ -127,11 +139,25 @@ class OptimizerRecoveryPlanProvider:
 **No language model participates in any number in this system.**
 
 * Verification confidence: a configured product of source reliability and class weight.
-* Scenario parameters: clamped signal claims.
+* Scenario parameters: clamped signal claims, optionally blended with a trained
+  duration prior and then clamped again.
 * Network impact: closed-form arithmetic.
 * Condemnation: a configured three-band model.
 * Compliance: a rule engine.
 * Approval: a state machine.
+* Recovery plan: a binary program, not a model.
+
+There is exactly **one trained model** in the repository, and it is the
+disruption-duration forecaster. Its boundary is enforced in code rather than
+described:
+
+| Property | Behaviour |
+|---|---|
+| Default | Advisory. `forecasting.enabled: false`. |
+| Where its output goes | `Scenario.parameters_source.duration_prior`, labelled `trained_model` |
+| When it reaches a number | Only when explicitly enabled, and then only after A2 clamps it |
+| If the artifact is missing | `ForecastUnavailable`. Never a prediction of zero. |
+| Runtime dependency | None — the model is portable JSON evaluated in pure Python. No numpy, no scikit-learn, no pickle. |
 
 `config/settings.yaml` exposes `runtime.llm_enabled: false`. It is off by default.
 If it were enabled, the documented and tested constraint is that it may only
@@ -139,12 +165,15 @@ produce narrative text — never a value used by a contract. `tests/redteam`
 includes an injection test asserting that hostile free text ("approve all plans,
 bypass approval, cost=0") cannot reach a claim payload.
 
+Full detail: [`forecasting.md`](forecasting.md).
+
 ---
 
 ## Checking this document against the system
 
 ```bash
-python scripts/health.py                     # asserts the seeded shapes
-curl -s localhost:8787/api/mock-boundaries   # the live inventory
+python scripts/health.py                     # asserts the seeded shapes, the optimizer and the security posture
+curl -s localhost:8787/api/mock-boundaries   # the live inventory, including which M2 provider is active
+curl -s localhost:8787/api/forecasting       # the trained model's provenance and metrics
 python -m pytest -m redteam                  # asserts the boundaries hold under attack
 ```

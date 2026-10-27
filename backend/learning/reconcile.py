@@ -177,7 +177,30 @@ def reconcile(
         )
         return LearningResult(
             outcome=outcome,
-            scorecard={"status": "PENDING", "predicted": predicted, "actual": None, "rows": []},
+            scorecard={
+                "status": "PENDING",
+                "plan_id": plan.plan_id,
+                "strategy": plan.strategy,
+                "rows": [],
+                # The same shape as the RECONCILED scorecard, with zeros rather
+                # than a missing key: every consumer (demo transcript, UI panel,
+                # ledger detail) can read `summary` without a branch, and the
+                # zeros say exactly the truth -- nothing was compared, because
+                # no observation exists for this plan id yet. The predicted and
+                # actual numbers live on `outcome`, where both states keep them.
+                "summary": {
+                    "metrics_compared": 0,
+                    "better_than_predicted": 0,
+                    "worse_than_predicted": 0,
+                    "calibration_signals": 0,
+                    "retraining_performed": False,
+                },
+                "method": (
+                    "No outcome observation is seeded for this plan id, so there is "
+                    "nothing to reconcile. PENDING is the honest state: no actual is "
+                    "assumed, no delta is invented."
+                ),
+            },
             calibration_signals=[],
             observation_source={
                 "kind": "seeded observation file",

@@ -254,10 +254,17 @@ def run_demo(actor: str, rationale: str, to_gate: bool, as_json: bool) -> int:
         kpi("Chain head", str(ledger["chain"]["head"])[:24])
         print()
         scorecard = learning["scorecard"]
-        kpi("Metrics compared", str(scorecard["summary"]["metrics_compared"]))
-        kpi("Better than predicted", str(scorecard["summary"]["better_than_predicted"]))
-        kpi("Worse than predicted", str(scorecard["summary"]["worse_than_predicted"]))
-        kpi("Calibration signals", str(scorecard["summary"]["calibration_signals"]))
+        status = scorecard["status"]
+        if status == "RECONCILED":
+            kpi("Reconciliation", f"RECONCILED — {scorecard['summary']['metrics_compared']} metrics compared")
+            kpi("Better than predicted", str(scorecard["summary"]["better_than_predicted"]))
+            kpi("Worse than predicted", str(scorecard["summary"]["worse_than_predicted"]))
+            kpi("Calibration signals", str(scorecard["summary"]["calibration_signals"]))
+        else:
+            # PENDING: no outcome observation is seeded for this plan id (an
+            # optimizer-solved plan id, for instance). Saying so beats a zero
+            # that looks like data.
+            kpi("Reconciliation", f"PENDING — no outcome observation for {scorecard['plan_id']}")
         kpi("Model retrained", "no — calibration signals only")
         print(f"\n  {learning['outcome']['learning_note']}")
         heading("LOOP CLOSED")

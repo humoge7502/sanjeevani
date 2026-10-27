@@ -1,0 +1,48 @@
+# SANJEEVANI M2 chokepoint service model — the discrete-event simulation's inputs.
+#
+# WHAT THIS IS. The *service capacity* of a chokepoint: how many vessels or
+# consignments it can process in parallel, and how long one passage takes. That is
+# all a queueing model needs to answer "how long until the backlog clears?".
+#
+# WHAT THIS IS NOT. It is not a stochastic model. There is no arrival
+# distribution, no service-time distribution and no random seed, because a
+# discrete-event simulation does not have to be stochastic -- SimPy schedules a
+# deterministic event heap, and every arrival and service time here is an input
+# derived from seeded data. This is what makes the DES compatible with an audit
+# chain that claims "run it twice, get the same bytes".
+#
+# WHY A DES AT ALL. The closed-form twin (backend/m2/digital_twin.py) applies a
+# duration and a delay to each consignment independently. It cannot express
+# contention: two consignments competing for two berths, or a third waiting behind
+# them. And it cannot answer "what if two disruptions overlap at the same
+# chokepoint", because adding two durations is not the same as unioning two closed
+# intervals. The DES answers both, and the two answers are compared rather than
+# reconciled (see backend/m2/des.py).
+#
+# PROVENANCE. Engineering estimates for a small synthetic network, like the rest
+# of the seeded data. `berths` and `service_days_per_consignment` are knobs a
+# domain expert can audit and change.
+
+meta:
+  model_version: "1.0.0"
+  owner: M2
+  note: >
+    Chokepoint service models. Deterministic: every value is an input, nothing is
+    sampled. See docs/m2-des.md.
+
+ports:
+  PORT-SUEZ:
+    name: Bab-el-Mandeb / Suez corridor
+    berths: 2
+    service_days_per_consignment: 0.75
+
+  PORT-JNPT:
+    name: Nhava Sheva (JNPT)
+    berths: 3
+    service_days_per_consignment: 0.25
+
+#: Applied to a blocked node with no explicit entry, so a new chokepoint in the
+#: network data does not silently become infinitely fast.
+defaults:
+  berths: 1
+  service_days_per_consignment: 0.5

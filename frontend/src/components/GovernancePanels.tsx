@@ -13,6 +13,7 @@ import type {
   ComplianceRecord,
   DemoState,
   ExecutionPayload,
+  M2Evidence,
   PolicyCheck,
   RecoveryPlanPayload,
 } from "../lib/types";
@@ -63,16 +64,25 @@ export function PlanPanel({
     );
   }
   const ranked = plan.alternatives.length > 0 ? plan.alternatives : [];
+  // The boundary label follows the live provider rather than a hard-coded
+  // claim, so the panel can never say "fixture" while an optimizer runs, or
+  // the reverse.
+  const fromOptimizer = plan.source === "optimizer";
 
   return (
     <Panel
-      eyebrow="M2 boundary · not implemented here"
+      eyebrow={fromOptimizer ? "M2 boundary · optimizer (opt-in)" : "M2 boundary · fixture (default)"}
       title="Recovery plan"
       subtitle={plan.rationale ?? undefined}
-      actions={<Provenance kind="fixture" />}
+      actions={
+        <Provenance
+          kind={fromOptimizer ? "real" : "fixture"}
+          text={fromOptimizer ? "M2 optimizer" : "M2 fixture"}
+        />
+      }
     >
       <div className="stack">
-        <Note tone="note--warn" glyph="⚠">
+        <Note tone={fromOptimizer ? "note--info" : "note--warn"} glyph={fromOptimizer ? "ℹ" : "⚠"}>
           <strong>{state.plan_provider.reality}</strong> — {state.plan_provider.disclosure}
         </Note>
 
@@ -126,9 +136,181 @@ export function PlanPanel({
 
         {ranked.length > 0 && <StrategyTable plan={plan} />}
 
+        {state.m2 && <OptimizerEvidence evidence={state.m2} />}
+
         <Evidence title="RecoveryPlan contract payload" data={plan} />
       </div>
     </Panel>
+  );
+}
+
+/* ------------------------------------------- M2 optimizer evidence panel
+ * Rendered only when the optimizer provider actually solved something
+ * (`state.m2` is the solver's own trace, surfaced verbatim). It exists so the
+ * human at the gate can check the solve — solver, agreement with exhaustive
+ * search, the DES cross-check and the counterfactuals — instead of trusting
+ * the plan. */
+
+export function OptimizerEvidence({ evidence }: { evidence: M2Evidence }): JSX.Element {
+  const cross = evidence.des.cross_check;
+  const verdictTone =
+    cross.verdict === "agrees" || cross.verdict === "not_applicable"
+      ? "badge--ok"
+      : "badge--warn";
+  const verdictLabel: Record<string, string> = {
+    agrees: "agrees",
+    des_slower: "DES slower",
+    des_faster: "DES faster",
+    not_applicable: "not applicable",
+  };
+  const stalled = evidence.counterfactuals.filter((row) => row.des && row.des.participants.length > 0);
+
+  return (
+    <div className="panel panel--flush">
+      <div className="panel__head">
+        <div className="panel__titles">
+          <p className="panel__eyebrow">M2 optimizer · solver trace</p>
+          <h4 className="panel__title" style={{ fontSize: "var(--fs-md)" }}>
+            Why this plan
+          </h4>
+        </div>
+      </div>
+      <div className="panel__body">
+        <div className="stack">
+          <div className="grid grid--2">
+            <div className="stack stack--tight">
+              <div className="small muted">The solve</div>
+              <StatRow label="Solver" value={evidence.solver} />
+              <StatRow
+                label="Combinations"
+                value={`${num(evidence.decision_space.combinations, 0)} of ${num(
+                  evidence.decision_space.exhaustive_limit,
+                  0,
+                )} enumerable`}
+              />
+              <StatRow
+                label="MILP = exhaustive"
+                value={
+                  evidence.verification.milp_agrees_with_exhaustive === null
+                    ? "not comparable"
+                    : evidence.verification.milp_agrees_with_exhaustive
+                      ? "yes"
+                      : "NO — investigate"
+                }
+              />
+              <StatRow
+                label="Objective value"
+                value={money(evidence.objective.selected_objective_value, { compact: true })}
+              />
+              <StatRow
+                label="Hub ceiling enforced"
+                value={evidence.decision_space.hub_ceiling_enforced ? "yes — contended" : "no contention"}
+              />
+            </div>
+            <div className="stack stack--tight">
+              <div className="small muted">The discrete-event cross-check</div>
+              <StatRow label="Twin recovery" value={`${num(cross.twin_recovery_hours, 1)} h`} />
+              <StatRow label="DES recovery" value={`${num(cross.des_recovery_hours, 1)} h`} />
+              <StatRow
+                label="Delta"
+                value={
+                  cross.verdict === "not_applicable"
+                    ? "—"
+                    : `${cross.delta_hours >= 0 ? "+" : ""}${num(cross.delta_hours, 1)} h (tolerance ${num(
+                        cross.tolerance_hours,
+                        0,
+                      )} h)`
+                }
+              />
+              <div className="row">
+                <Badge tone={verdictTone}>{verdictLabel[cross.verdict] ?? cross.verdict}</Badge>
+                {evidence.des.enabled_as_constraint && (
+                  <Badge tone="badge--accent">hard constraint</Badge>
+                )}
+              </div>
+              <p className="tiny muted">
+                The two models are never averaged. Agreement is evidence; disagreement is a
+                finding — the queue found time the closed form missed.
+              </p>
+            </div>
+          </div>
+
+          {evidence.counterfactuals.length > 0 && (
+            <TableScroll label="What each uniform recovery policy would have cost, with its discrete-event cross-check">
+              <table className="table">
+                <caption className="visually-hidden">
+                  Uniform-policy counterfactuals from the digital twin, each cross-checked by the
+                  discrete-event simulation
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Uniform policy</th>
+                    <th scope="col" className="num">
+                      Cost
+                    </th>
+                    <th scope="col" className="num">
+                      Unrecovered
+                    </th>
+                    <th scope="col" className="num">
+                      Total impact
+                    </th>
+                    <th scope="col" className="num">
+                      Service
+                    </th>
+                    <th scope="col" className="num">
+                      DES recovery
+                    </th>
+                    <th scope="col">Executable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {evidence.counterfactuals.map((row) => (
+                    <tr key={row.uniform_policy}>
+                      <td>
+                        <div className="mono">{row.uniform_policy}</div>
+                        <div className="tiny muted">{row.label}</div>
+                      </td>
+                      <td className="num">{money(row.cost_usd, { compact: true })}</td>
+                      <td className="num">{money(row.expected_unrecovered_usd, { compact: true })}</td>
+                      <td className="num">{money(row.total_economic_impact_usd, { compact: true })}</td>
+                      <td className="num">{percent(row.service_level, 1)}</td>
+                      <td className="num">
+                        {row.des ? `${num(row.des.recovery_hours, 1)} h` : "—"}
+                        {row.des && row.des.participants.length > 0 && (
+                          <div className="tiny muted">
+                            {row.des.participants.length} queued · peak{" "}
+                            {Math.max(0, ...Object.values(row.des.queue_peak))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {row.executable ? (
+                          <Badge tone="badge--ok" glyph="✓">
+                            yes
+                          </Badge>
+                        ) : (
+                          <Badge tone="badge--danger" glyph="✕">
+                            no — {row.violations[0] ?? "infeasible"}
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+          )}
+          {stalled.length > 0 && (
+            <Note tone="note--warn" glyph="⚠">
+              {stalled.length} uniform polic{stalled.length === 1 ? "y" : "ies"} leave traffic on the
+              disrupted corridor, and the DES says the corridor is not clear for{" "}
+              {num(Math.max(...stalled.map((r) => r.des?.recovery_hours ?? 0)), 1)} h — longer than
+              the closed-form twin prices. That gap is the queue the twin cannot see.
+            </Note>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -136,20 +318,22 @@ export function StrategyTable({ plan }: { plan: RecoveryPlanPayload }): JSX.Elem
   const best = {
     cost: Math.max(...plan.alternatives.map((a) => a.cost), 1),
   };
+  const fromOptimizer = plan.source === "optimizer";
+  const sourceLabel = fromOptimizer ? "M2 optimizer" : "M2 fixture";
   return (
     <div className="panel panel--flush">
       <div className="panel__head">
         <div className="panel__titles">
-          <p className="panel__eyebrow">M2 fixture strategy comparison</p>
+          <p className="panel__eyebrow">{sourceLabel} strategy comparison</p>
           <h4 className="panel__title" style={{ fontSize: "var(--fs-md)" }}>
             Ranked alternatives
           </h4>
         </div>
       </div>
-      <TableScroll label="Ranked recovery strategies supplied by the M2 boundary fixture">
+      <TableScroll label={`Ranked recovery strategies supplied by the M2 boundary ${fromOptimizer ? "optimizer" : "fixture"}`}>
         <table className="table">
           <caption className="visually-hidden">
-            Ranked recovery strategies supplied by the M2 boundary fixture
+            Ranked recovery strategies supplied by the M2 boundary {fromOptimizer ? "optimizer" : "fixture"}
           </caption>
           <thead>
             <tr>
@@ -210,11 +394,20 @@ export function StrategyTable({ plan }: { plan: RecoveryPlanPayload }): JSX.Elem
         </table>
       </TableScroll>
       <div className="panel__body">
-        <Note glyph="◈">
-          The comparison table is part of the M2 fixture too. No simulation was
-          replayed and no objective function was optimized to produce these rows —
-          they are hand-set, deterministic and labelled as such.
-        </Note>
+        {fromOptimizer ? (
+          <Note glyph="◈">
+            These rows are the optimizer&apos;s Pareto frontier: every candidate was evaluated by
+            the deterministic digital twin and ranked by the stated objective, so the comparison
+            is computed, not hand-set.
+          </Note>
+        ) : (
+          <Note glyph="◈">
+            The comparison table is part of the M2 fixture too. No simulation was replayed and no
+            objective function was optimized to produce these rows — they are hand-set,
+            deterministic and labelled as such. Set SANJEEVANI_PLAN_PROVIDER=optimizer for the
+            real solve.
+          </Note>
+        )}
       </div>
     </div>
   );

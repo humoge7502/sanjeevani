@@ -35,6 +35,9 @@ frontend/playwright-report/
 frontend/blob-report/
 frontend/.playwright/
 
+# ---- agent tooling state ---------------------------------------------------
+.mimosa/
+
 # ---- editors / os ----------------------------------------------------------
 .DS_Store
 .idea/

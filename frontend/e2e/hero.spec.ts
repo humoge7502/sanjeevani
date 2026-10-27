@@ -29,7 +29,7 @@ test.describe("hero scenario", () => {
     await expect(page.getByText("offline mode").first()).toBeVisible();
     await expect(page.getByText("Load the hero scenario")).toBeVisible();
     // The M2 boundary must be stated before a judge has to ask.
-    await expect(page.getByText(/SIMULATE and OPTIMIZE are owned by Member 2/)).toBeVisible();
+    await expect(page.getByText(/SIMULATE and OPTIMIZE are implemented and opt-in/)).toBeVisible();
 
     expect(errors).toEqual([]);
   });

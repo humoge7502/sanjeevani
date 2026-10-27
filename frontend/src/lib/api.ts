@@ -97,6 +97,17 @@ export const api = {
       deterministic_seed: number;
       clock_frozen: boolean;
       llm_enabled: boolean;
+      frontend_built: boolean;
+      /** Posture, reported rather than assumed: auth can be on and still be off by default. */
+      security?: {
+        auth_enabled: boolean;
+        ephemeral_jwt_secret: boolean;
+        security_headers: boolean;
+        rate_limiting: boolean;
+        max_request_bytes: number;
+      };
+      /** Which M2 provider is live: `fixture` (default) or `optimizer`. */
+      m2_provider?: { provider: string; source: string; optimizer_implemented: boolean };
     }>("/api/health"),
 
   state: () => request<DemoState>("/api/state"),
@@ -114,13 +125,38 @@ export const api = {
 
   boundaries: () => request<DemoState["mock_boundaries"]>("/api/mock-boundaries"),
 
-  audit: () =>
-    request<{
+  /**
+   * The audit trail: the memoised timeline, the coverage and the chain verdict.
+   *
+   * The record page is **bounded** and separate (`page`) because returning the
+   * whole ledger made this response grow with it without limit. The full records
+   * live at `page.records`; the timeline is what the UI renders.
+   */
+  audit: (params?: { limit?: number; offset?: number; stage?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.offset !== undefined) query.set("offset", String(params.offset));
+    if (params?.stage) query.set("stage", params.stage);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request<{
       timeline: DemoState["ledger"]["timeline"];
       coverage: DemoState["ledger"]["coverage"];
       chain: DemoState["ledger"]["chain"];
-      records: unknown[];
-    }>("/api/audit"),
+      page: {
+        records: Array<Record<string, unknown>>;
+        total: number;
+        returned: number;
+        offset: number;
+        limit: number;
+        has_more: boolean;
+      };
+    }>(`/api/audit${suffix}`);
+  },
+
+  /** The trained forecaster's provenance, so the evidence is inspectable. */
+  forecasting: () => request<{ model: Record<string, unknown>; config: Record<string, unknown> }>(
+    "/api/forecasting",
+  ),
 
   impact: (horizonDays?: number) =>
     request<{ primary?: unknown; all?: unknown; impact?: unknown }>(

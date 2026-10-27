@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "lane": "LANE-MUM-BIO-EU",
+      "rate_usd_per_feu": 4310.0,
+      "previous_rate_usd_per_feu": 3150.0,
+      "currency": "USD",
+      "container": "40HC"
+    },
+    {
+      "lane": "LANE-CN-A-API",
+      "rate_usd_per_feu": 1900.0,
+      "previous_rate_usd_per_feu": 1850.0,
+      "currency": "USD",
+      "container": "40HC"
+    },
+    {
+      "lane": "LANE-CN-B-API",
+      "rate_usd_per_feu": 1760.0,
+      "previous_rate_usd_per_feu": 2020.0,
+      "currency": "USD",
+      "container": "40HC"
+    },
+    {
+      "lane": "LANE-UNLISTED-CORRIDOR",
+      "rate_usd_per_feu": 9999.0,
+      "previous_rate_usd_per_feu": 5000.0,
+      "currency": "USD",
+      "container": "40HC"
+    }
+  ]
+}

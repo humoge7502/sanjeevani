@@ -1,7 +1,16 @@
 # 0001 — M2 is consumed as a labelled fixture, not implemented
 
-**Status:** Accepted
+**Status:** Superseded by [0010](0010-m2-is-implemented-and-opt-in.md)
 **Date:** 2026-09-15
+
+> **Superseded on 2026-10-25.** The "Revisiting this" section at the foot of this
+> document set four acceptance criteria, and all four are now met: M2 is
+> implemented as a real optimizer and deterministic digital twin, the fixture
+> remains the **default** provider so nothing documented here stopped being true,
+> and the contract and integration suites pass unchanged. Read
+> [0010](0010-m2-is-implemented-and-opt-in.md) for what changed. This record is
+> kept because the reasoning for *why* a labelled fixture beat a small solver in
+> the first place is still the right reasoning for the default.
 
 ## Context
 

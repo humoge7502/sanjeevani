@@ -1,0 +1,158 @@
+# SANJEEVANI signal-feed adapter catalogue (Member 1, A1's front door).
+#
+# WHAT THIS FILE IS. The *mapping* from three real external sources onto this
+# system's existing `RawSignal` shape. Each adapter declares an endpoint, the
+# query it issues, a reliability table and a rulebook that turns the source's
+# own payload into a structured `claim`.
+#
+# WHAT THIS FILE IS NOT. It is not a source of numbers invented by the adapter.
+# An adapter can only ever copy a value that the payload actually carried
+# (`peak_temp_c`, `wind_speed_10m`, `rate_usd_per_feu`, `rate_change_pct`) or
+# attach a *configured constant* from the rulebook below. Free text is never
+# parsed into a parameter -- exactly the same containment decision the scripted
+# feed documents in data/events/hero_feeds.yaml.
+#
+# OFF BY DEFAULT. settings.sensing.feeds.enabled is false, so data/events/
+# hero_feeds.yaml remains the documented demo path and its numbers are
+# untouched. Turn the adapters on with SANJEEVANI_FEEDS_ENABLED=true.
+#
+# DETERMINISM. A live fetch is written to a snapshot under
+# data/events/snapshots/ and the snapshot -- not the network -- is what a replay
+# reads. `retrieved_utc` is recorded inside the snapshot, so replaying one
+# reproduces byte-identical signals. See docs/feeds.md.
+
+meta:
+  config_version: "1.0.0"
+  owner: M1
+  note: >
+    Endpoints and query parameters are the documented public request shapes of
+    each service. The reliability tables and threshold rulebooks below are this
+    prototype's own engineering estimates, not learned credibility scores.
+
+feeds:
+  # ---------------------------------------------------------------------
+  # GDELT DOC 2.0 API -- global news. The widest-net corroboration source.
+  # ---------------------------------------------------------------------
+  gdelt:
+    display_name: "GDELT DOC 2.0 API (global news)"
+    source_class: NEWS
+    endpoint: "https://api.gdeltproject.org/api/v2/doc/doc"
+    query:
+      query: "(suez OR \"red sea\" OR \"bab el mandeb\" OR shipping OR port) pharma"
+      mode: artlist
+      format: json
+      maxrecords: 25
+      timespan: "1d"
+      sort: datedesc
+    # Per-domain credibility priors. There is no learned credibility model in
+    # this repository; the absence of one is declared in docs/mock-boundaries.md
+    # and the fallback below is what an unknown domain gets.
+    domain_reliability:
+      reuters.com: 0.92
+      apnews.com: 0.90
+      lloydslist.com: 0.88
+      joc.com: 0.86
+      gcaptain.com: 0.80
+      splash247.com: 0.78
+      thehindu.com: 0.74
+    default_reliability: 0.60
+    # Keyword -> structured claim. An article that matches no rule is still a
+    # signal (it is corroboration), but it carries UNCLASSIFIED/UNKNOWN and A1
+    # therefore watchlists it. Nothing is inferred from the headline.
+    rules:
+      - id: REDSEA-CLOSURE
+        any_keywords:
+          - "bab-el-mandeb"
+          - "bab el mandeb"
+          - "red sea"
+          - "suez"
+        entities: [PORT-SUEZ, RED-SEA, LANE-MUM-BIO-EU]
+        claim:
+          event_type: PORT_CLOSURE
+          target: PORT-SUEZ
+          corridor: RED_SEA
+          duration_days: 10
+          transit_delay_days: 12
+          capacity_factor: 0.15
+      - id: JNPT-CONGESTION
+        any_keywords: ["nhava sheva", "jnpt", "mumbai port congestion"]
+        entities: [PORT-JNPT, LANE-MUM-BIO-EU]
+        claim:
+          event_type: CAPACITY_SHORTAGE
+          target: PORT-JNPT
+          corridor: ARABIAN_SEA
+          duration_days: 6
+          transit_delay_days: 3
+          capacity_factor: 0.55
+
+  # ---------------------------------------------------------------------
+  # Open-Meteo -- port and hub weather. The independent physical source.
+  # ---------------------------------------------------------------------
+  open_meteo:
+    display_name: "Open-Meteo forecast API (port and hub conditions)"
+    source_class: WEATHER
+    endpoint: "https://api.open-meteo.com/v1/forecast"
+    source_id: "open-meteo:forecast"
+    source_reliability: 0.90
+    query:
+      hourly: "temperature_2m,wind_speed_10m"
+      forecast_days: 3
+      timezone: UTC
+    # Every monitored site is a node the graph already knows, so a weather
+    # signal is about a place the network model can act on.
+    sites:
+      - node_id: PORT-SUEZ
+        latitude: 30.5852
+        longitude: 32.2654
+      - node_id: PORT-JNPT
+        latitude: 18.9500
+        longitude: 72.9500
+      - node_id: WH-BOM
+        latitude: 19.0760
+        longitude: 72.8777
+      - node_id: WH-FRA
+        latitude: 50.1109
+        longitude: 8.6821
+    # Operability thresholds. A forecast at or beyond these is a port-closure
+    # claim in its own right -- which is what lets a physical measurement
+    # independently corroborate a news report under RULE-2SOURCE.
+    closure:
+      wind_speed_kmh: 60.0
+      claim:
+        event_type: PORT_CLOSURE
+        corridor: WEATHER_INDUCED
+        duration_days: 3
+        transit_delay_days: 4
+        capacity_factor: 0.20
+        cause: WEATHER
+    # Cold-chain / heat-stress band. Leaving the band is an anomaly signal, not
+    # a port closure.
+    anomaly:
+      peak_temp_c_min: 2.0
+      peak_temp_c_max: 30.0
+      claim:
+        event_type: WEATHER_ANOMALY
+
+  # ---------------------------------------------------------------------
+  # Freightos -- ocean freight rates. The cost-of-recovery source.
+  # ---------------------------------------------------------------------
+  freightos:
+    display_name: "Freightos ocean rate feed (lane cost signal)"
+    source_class: CARRIER
+    endpoint: "https://api.freightos.com/v1/rates"
+    # The rate feed is authenticated. With no key the adapter reports
+    # `unavailable` and contributes nothing -- it does not fall back to a
+    # guessed rate.
+    api_key_env: FREIGHTOS_API_KEY
+    api_key_header: "X-Api-Key"
+    source_id: "freightos:fbx"
+    source_reliability: 0.85
+    query:
+      currency: USD
+      container: 40HC
+    # A rate move below this is noise. At or above it the lane is a signal.
+    rate_change_threshold_pct: 15.0
+    # High severity needs a move this large.
+    rate_change_high_pct: 40.0
+    claim:
+      event_type: FREIGHT_RATE_SPIKE

@@ -1,11 +1,41 @@
-# SANJEEVANI backend (M1 + M3). All offline-capable, no service credentials.
+# SANJEEVANI backend (M1 + M2 + M3). All offline-capable, no service credentials.
+#
+#   pip install -r requirements.txt
+#   pip install -r requirements-dev.txt   # adds lint, types and pytest
+#   pip install -r requirements-ml.txt    # ONLY to retrain the forecaster
 #
 # Pinned to the versions this repository was verified against.
-#   pip install -r requirements.txt
-#   pip install -r requirements-dev.txt   # adds pytest
 
 fastapi==0.136.3
 uvicorn==0.51.0
 pydantic==2.13.4
 PyYAML==6.0.3
 networkx==3.6.1
+
+# ---- M2 optimizer (optional at runtime, present by default) ------------------
+# PuLP drives the multi-objective recovery program in backend/m2/optimizer.py and
+# bundles the CBC solver binary. It is OPTIONAL ON PURPOSE: if the import or the
+# solve fails, the optimizer falls back to exact enumeration (which is optimal for
+# this network's five-consignment plans) and records why in its trace. A missing
+# solver degrades the *explanation*, never the answer.
+pulp==2.9.0
+
+# SimPy drives the deterministic discrete-event cross-check in backend/m2/des.py
+# (chokepoint berths, closure windows, queue waits). It schedules a deterministic
+# event heap -- no sampling, no seed -- so the DES's outputs stay byte-reproducible
+# like everything else in the audit chain. Pure Python, no transitive dependencies.
+simpy==4.1.2
+
+# NOT here, deliberately:
+#   numpy / scipy / pandas / scikit-learn  ->  requirements-ml.txt (training only)
+#   pyjwt                                  ->  present; see the note below
+#
+# PyJWT powers the optional authentication layer (backend/security/tokens.py) and
+# IS a runtime dependency once SANJEEVANI_AUTH_ENABLED=true. It is small, pure
+# Python and has no transitive dependencies.
+PyJWT==2.15.1
+
+# Prometheus metrics exposition for /metrics (backend/observability/metrics.py).
+# Pure Python, no transitive dependencies.
+prometheus-client==0.26.0
+

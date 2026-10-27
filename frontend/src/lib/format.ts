@@ -201,13 +201,21 @@ export function deriveLoop(state: DemoState | null): Record<string, LoopStatus> 
   }
 
   if (hasRun) {
-    out["SIMULATE"] = { state: "pending", note: "Owned by M2 — not implemented" };
-    out["OPTIMIZE"] = { state: "pending", note: "Owned by M2 — not implemented" };
+    out["SIMULATE"] = { state: "pending", note: "Waiting for the M2 boundary" };
+    out["OPTIMIZE"] = { state: "pending", note: "Waiting for the M2 boundary" };
   }
 
   if (state.plan) {
-    out["SIMULATE"] = { state: "pending", note: "M2 fixture supplied the plan" };
-    out["OPTIMIZE"] = { state: "pending", note: "M2 fixture supplied the plan" };
+    // The loop HUD tells the truth about which M2 provider supplied the plan:
+    // the optimizer is implemented and opt-in; the labelled fixture is the
+    // default so the offline demo stays byte-reproducible.
+    if (state.plan.source === "optimizer") {
+      out["SIMULATE"] = { state: "done", note: "Digital twin + DES cross-check" };
+      out["OPTIMIZE"] = { state: "done", note: "MILP optimizer (opt-in)" };
+    } else {
+      out["SIMULATE"] = { state: "pending", note: "M2 fixture stood in — optimizer is opt-in" };
+      out["OPTIMIZE"] = { state: "pending", note: "M2 fixture stood in — optimizer is opt-in" };
+    }
   }
 
   if (complianceStatus === "PASSED") {

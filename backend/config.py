@@ -64,6 +64,11 @@ def _read_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(fh) or {}
 
 
+def _truthy(value: str) -> bool:
+    """Environment boolean: "false"/"0"/"no" are off, anything else is on."""
+    return value.strip().lower() not in {"false", "0", "no"}
+
+
 def _apply_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     """Overlay deployment knobs from the environment onto the YAML settings.
 
@@ -99,11 +104,63 @@ def _apply_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     # "false"/"0"/"no" disable; anything else enables. Empty means "leave as-is".
     offline = os.environ.get("SANJEEVANI_OFFLINE")
     if offline:
-        cfg.setdefault("runtime", {})["offline"] = offline.strip().lower() not in {
+        cfg.setdefault("runtime", {})["offline"] = _truthy(offline)
+
+    # Signal-feed adapters. Two separate knobs because they mean different
+    # things: `enabled` swaps the scripted feed for adapter output, while `live`
+    # decides whether the adapters may touch the network or must replay a
+    # snapshot. A deployment can enable the adapters and still be air-gapped.
+    feeds = cfg.setdefault("sensing", {}).setdefault("feeds", {})
+    feeds_enabled = os.environ.get("SANJEEVANI_FEEDS_ENABLED")
+    if feeds_enabled:
+        feeds["enabled"] = _truthy(feeds_enabled)
+    feeds_live = os.environ.get("SANJEEVANI_FEEDS_LIVE")
+    if feeds_live:
+        feeds["live"] = _truthy(feeds_live)
+    snapshot_dir = os.environ.get("SANJEEVANI_FEEDS_SNAPSHOT_DIR")
+    if snapshot_dir:
+        feeds["snapshot_dir"] = snapshot_dir
+
+    # The narrative seam. Two knobs, matching the feed pair: one decides whether
+    # a model writes any prose at all, the other which body writes it.
+    llm = os.environ.get("SANJEEVANI_LLM_ENABLED")
+    if llm:
+        cfg.setdefault("runtime", {})["llm_enabled"] = _truthy(llm)
+    narrator = os.environ.get("SANJEEVANI_NARRATOR")
+    if narrator:
+        name = narrator.strip().lower()
+        if name not in {"template", "remote"}:
+            raise ValueError(
+                f"SANJEEVANI_NARRATOR must be one of template|remote, got {narrator!r}. "
+                "A typo'd narrator silently falling back to the template would make a "
+                "deployment believe a model was writing the prose when none was."
+            )
+        cfg.setdefault("narrative", {})["narrator"] = name
+
+    # Whether the discrete-event simulation's verdict is a hard constraint.
+    des = os.environ.get("SANJEEVANI_M2_DES")
+    if des:
+        cfg.setdefault("m2", {}).setdefault("des", {})["enabled"] = _truthy(des)
+
+    # The SQLite audit mirror is a deployment choice, not a threshold: an operator
+    # enabling it must not have to edit a file baked into the image.
+    audit_mirror = os.environ.get("SANJEEVANI_AUDIT_MIRROR")
+    if audit_mirror:
+        cfg.setdefault("persistence", {})["sqlite_mirror"] = audit_mirror.strip().lower() not in {
             "false",
             "0",
             "no",
         }
+
+    durability = os.environ.get("SANJEEVANI_LEDGER_DURABILITY")
+    if durability:
+        if durability.strip().lower() not in {"none", "flush", "fsync"}:
+            raise ValueError(
+                f"SANJEEVANI_LEDGER_DURABILITY must be one of none|flush|fsync, "
+                f"got {durability!r}. A typo'd durability silently weakening the audit "
+                "trail is worse than a startup failure."
+            )
+        cfg.setdefault("persistence", {})["ledger_durability"] = durability.strip().lower()
 
     return cfg
 
@@ -137,12 +194,35 @@ def m2_fixture() -> dict[str, Any]:
     return _read_yaml(REPO_ROOT / "backend" / "m2" / "fixtures" / "recovery_plans.yaml")
 
 
+@functools.cache
+def recovery_options() -> dict[str, Any]:
+    """The M2 recovery-action catalogue and the optimizer's objective weights.
+
+    This is the *decision space*, not the decision. See config/recovery_options.yaml
+    and backend/m2/digital_twin.py.
+    """
+    return _read_yaml(CONFIG_DIR / "recovery_options.yaml")
+
+
+@functools.cache
+def feeds_config() -> dict[str, Any]:
+    """The signal-feed adapter catalogue (config/feeds.yaml).
+
+    Endpoints, reliability priors and the keyword/threshold rulebooks that turn a
+    foreign payload into this system's ``RawSignal`` shape. Only read when
+    ``settings.sensing.feeds.enabled`` is true.
+    """
+    return _read_yaml(CONFIG_DIR / "feeds.yaml")
+
+
 def reload_config() -> None:
     """Drop cached config. Used by the demo reset endpoint and by tests."""
     settings.cache_clear()
     policies.cache_clear()
     scenarios_config.cache_clear()
     m2_fixture.cache_clear()
+    recovery_options.cache_clear()
+    feeds_config.cache_clear()
 
 
 def scenario_clock() -> datetime:

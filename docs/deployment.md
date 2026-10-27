@@ -91,7 +91,8 @@ change an impact calculation through an environment variable.
 | `SANJEEVANI_FRONTEND_DIST` | `<repo>/frontend/dist` | Where the built UI is served from. |
 | `SANJEEVANI_REPO_ROOT` | parent of `backend/` | Override if `config/` and `data/` are not siblings of the package. |
 | `SANJEEVANI_OFFLINE` | `true` | `false`/`0`/`no` disables the explicit offline marking. |
-| `SANJEEVANI_PLAN_PROVIDER` | `fixture` | `fixture` (M2 stand-in), `unavailable` (fails closed, used by the red-team suite), `optimizer` (not implemented — raises). |
+| `SANJEEVANI_PLAN_PROVIDER` | `fixture` | `fixture` (M2 stand-in, byte-reproducible demo numbers), `optimizer` (the real solve: PuLP/CBC MILP cross-checked by exhaustive enumeration, evaluated on the deterministic digital twin — see [m2-optimizer.md](m2-optimizer.md)), `unavailable` (fails closed, used by the red-team suite). |
+| `SANJEEVANI_M2_DES` | `false` | The discrete-event cross-check always runs and reports its verdict beside the twin's ([m2-des.md](m2-des.md)). `true` additionally makes leftover corridor traffic past the recovery ceiling — or any berth contention — a hard constraint violation. |
 
 A malformed value raises at startup rather than falling back to the default. A
 typo'd port silently running on the wrong port is worse than a clear failure.

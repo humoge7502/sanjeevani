@@ -101,6 +101,78 @@ def main() -> int:
             f"{len(result.watchlist)} watchlisted · {len(result.deduplicated)} deduplicated"
         )
 
+    def signal_feeds() -> str:
+        """The adapters must be replayable offline, and off unless asked for."""
+        from backend.agents import feeds as feeds_pkg
+        from backend.agents.feeds.snapshot import SnapshotStore
+        from backend.config import DATA_DIR, feeds_config, settings
+
+        feeds_cfg = settings()["sensing"]["feeds"]
+        snapshot_dir = DATA_DIR / str(feeds_cfg["snapshot_dir"])
+        store = SnapshotStore(snapshot_dir)
+        load = feeds_pkg.load_signals(
+            config=feeds_config(),
+            snapshot_dir=snapshot_dir,
+            retrieved_utc="2026-09-30T05:50:00Z",
+            live=False,
+            offline=True,
+        )
+        replayable = [fid for fid in feeds_pkg.ADAPTERS if store.latest(fid) is not None]
+        missing = sorted(set(feeds_pkg.ADAPTERS) - set(replayable))
+        assert not missing, f"no replayable snapshot for: {missing}"
+        # A replay reads snapshots, so it must produce signals with no credential
+        # present for the credentialled feed.
+        assert load.records, "a replay of the committed snapshots produced no signals"
+        for record in load.records:
+            assert record.published_utc.endswith("Z"), (
+                f"{record.signal_id} carries a naive timestamp, which A1 cannot read"
+            )
+        posture = "ENABLED (this overrides the demo feed)" if feeds_cfg["enabled"] else "off"
+        return (
+            f"{len(feeds_pkg.ADAPTERS)} adapters configured · "
+            f"{len(load.records)} signals replayed offline · "
+            f"{len(replayable)} snapshot(s) on disk · adapters {posture} by default"
+        )
+
+    def narrative_seam() -> str:
+        """Off by default; and when on, provably unable to move a number."""
+        from backend.agents import narrative as narrative_mod
+        from backend.agents.pipeline import run_m1
+        from backend.config import settings
+
+        assert settings()["runtime"]["llm_enabled"] is False, (
+            "the narrative seam must be off by default"
+        )
+        baseline = run_m1()
+        frozen = baseline.scenarios[0]
+        assert frozen.narrative_source["narrator"] == narrative_mod.SOURCE_FROZEN
+        assert frozen.narrative_source["applied"] is False
+
+        # With the seam on, the words may change. The numbers may not.
+        settings()["runtime"]["llm_enabled"] = True
+        settings()["narrative"]["narrator"] = "remote"
+        try:
+            narrated = run_m1()
+        finally:
+            settings()["runtime"]["llm_enabled"] = False
+            settings()["narrative"]["narrator"] = "template"
+        assert narrated.scenarios[0].narrative != frozen.narrative, (
+            "the seam produced no prose, so this check is not testing anything"
+        )
+        assert narrated.primary_impact == baseline.primary_impact, (
+            "the narrative seam changed an impact number"
+        )
+        assert [s.duration_days for s in narrated.scenarios] == [
+            s.duration_days for s in baseline.scenarios
+        ], "the narrative seam changed a scenario parameter"
+        assert narrated.events_contract() == baseline.events_contract(), (
+            "the narrative seam changed a frozen contract payload"
+        )
+        return (
+            "off by default · frozen template when off · remote narrator falls back "
+            "while offline · no number changes when it is on"
+        )
+
     def determinism() -> str:
         from backend.agents.pipeline import run_m1
 
@@ -157,6 +229,105 @@ def main() -> int:
         assert reachable == ["APPROVED"], f"EXECUTING reachable from {reachable}"
         return "EXECUTING reachable only from APPROVED"
 
+    def m2_optimizer() -> str:
+        from backend.m2.optimizer import optimize_for_event
+
+        first = optimize_for_event(event_id="EVT-001", scenario_id="SCN-EVT-001-10D")
+        second = optimize_for_event(event_id="EVT-001", scenario_id="SCN-EVT-001-10D")
+        assert first.recommended.model_dump() == second.recommended.model_dump(), (
+            "the optimizer is not deterministic"
+        )
+        verification = first.trace["verification"]
+        assert verification["milp_available"], verification["milp_note"]
+        assert verification["milp_agrees_with_exhaustive"], (
+            "the MILP and the exhaustive search disagree: "
+            f"{verification['milp_choices']} vs {first.trace['selected_plan']['choices']}"
+        )
+        assert first.trace["constraints"]["violations"] == [], (
+            f"the recommended plan breaks a ceiling: {first.trace['constraints']['violations']}"
+        )
+        return (
+            f"solved {verification['milp_solver']} · agrees with exhaustive search · "
+            f"{first.trace['decision_space']['combinations']} combinations · "
+            f"plan {first.recommended.plan_id} {first.recommended.strategy} "
+            f"${first.recommended.cost:,.0f}"
+        )
+
+    def m2_des() -> str:
+        from backend.graph.network import Network
+        from backend.m2.des import clearance_for_plan, compare_with_twin, windows_from_disruption
+        from backend.m2.digital_twin import build_catalogue, build_contexts
+        from backend.m2.optimizer import derive_disruption
+
+        net = Network.load()
+        view = derive_disruption(net, scenario_id="SCN-EVT-001-10D", event_id="EVT-001")
+        contexts, _ = build_contexts(
+            net,
+            disrupted_lanes=list(view.disrupted_lanes),
+            excursed_shipments=list(view.excursed_shipments),
+        )
+        catalogue = build_catalogue()
+        assignment = {c.shipment_id: "WAIT" for c in contexts}
+        des = clearance_for_plan(
+            net, contexts, catalogue, assignment, windows_from_disruption(["PORT-SUEZ"], 10.0)
+        )
+        rerun = clearance_for_plan(
+            net, contexts, catalogue, assignment, windows_from_disruption(["PORT-SUEZ"], 10.0)
+        )
+        assert des.as_dict() == rerun.as_dict(), "the DES is not deterministic"
+        # The known blind spot: uniform WAIT prices at 336 h in the twin and the
+        # queue says 406.8 h. If this number moves, a seeded input changed.
+        comparison = compare_with_twin(des, 336.0)
+        assert comparison["verdict"] == "des_slower" and des.recovery_hours == 406.8, (
+            f"unexpected DES verdict: {comparison['verdict']} at {des.recovery_hours}h"
+        )
+        waits = [f"{k} {v:.2f}d" for k, v in sorted(des.wait_days.items())]
+        return (
+            f"deterministic · uniform WAIT contradicts the twin "
+            f"({des.recovery_hours:.1f}h vs 336.0h, verdict {comparison['verdict']}) · "
+            f"waits: {', '.join(waits)}"
+        )
+
+    def authentication() -> str:
+        from backend.security import (
+            TokenService,
+            TokenSettings,
+            hash_password,
+            verify_password,
+        )
+        from backend.security.identity import store
+
+        assert verify_password("pw", hash_password("pw", iterations=1000))
+        assert not verify_password("nope", hash_password("pw", iterations=1000))
+        service = TokenService(
+            TokenSettings(enabled=True, secret="h" * 40, ttl_seconds=60, ephemeral_secret=False)
+        )
+        accounts = store.accounts()
+        assert accounts, "the identity roster is empty; run scripts/make_identity.py --demo"
+        issued = service.issue(accounts[0])
+        claims = service.verify(issued["access_token"])
+        assert claims["sub"] == accounts[0].id
+        from backend.config import settings
+
+        assert settings()["auth"]["enabled"] is False, "auth must be off by default in demo mode"
+        return (
+            f"{len(accounts)} accounts · PBKDF2 round-trip OK · token round-trip OK · "
+            "auth disabled by default"
+        )
+
+    def security_posture() -> str:
+        from backend.security import build_csp
+        from backend.security.headers import BASE_HEADERS
+
+        policy = build_csp("n0nce")
+        assert "'nonce-n0nce'" in policy
+        script = next(d for d in policy.split("; ") if d.startswith("script-src"))
+        assert "'unsafe-inline'" not in script, "scripts must not allow inline code"
+        assert "frame-ancestors 'none'" in policy
+        for header in ("X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy"):
+            assert header in BASE_HEADERS
+        return f"CSP with nonce · {len(BASE_HEADERS)} security headers · rate limiting configured"
+
     def demo_path() -> str:
         from backend.contracts import ApprovalDecision
         from backend.governance.approval import GovernanceError
@@ -210,12 +381,22 @@ def main() -> int:
 
     print("\nM1 · upstream intelligence")
     check("Sensing / verification / scenario pipeline", m1_pipeline)
+    check("Signal-feed adapters (GDELT / Open-Meteo / Freightos)", signal_feeds)
+    check("Narrative seam (the only place a model may speak)", narrative_seam)
     check("Determinism", determinism)
+
+    print("\nM2 · simulation and optimization")
+    check("Optimizer + digital twin", m2_optimizer)
+    check("Discrete-event cross-check (berths, closures, queues)", m2_des)
 
     print("\nContracts & governance")
     check("Shared contracts", contracts)
     check("Policy rulebook", policy_engine)
     check("Governance invariant", governance_invariant)
+
+    print("\nSecurity")
+    check("Authentication and identity", authentication)
+    check("Security posture (CSP, headers, rate limiting)", security_posture)
 
     print("\nEnd-to-end")
     check("Hero demo path", demo_path)

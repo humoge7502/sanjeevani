@@ -56,14 +56,17 @@ def _clean_state():
     from backend.config import reload_config
     from backend.governance.approval import registry
     from backend.graph.network import Network
+    from backend.observability import reset_runtime_metrics
     from backend.orchestrator import orchestrator
     from backend.sap.execution import orchestrator as exec_orchestrator
+    from backend.security import reset_security
 
     def wipe() -> None:
         # The orchestrator owns the run state and, through its own reset(), also
-        # clears the ledger, approval registry and SAP mocks. It is listed first
-        # because it is the superset; the explicit calls below keep each reset
-        # visible and make this fixture correct even if that ever changes.
+        # clears the ledger, approval registry, SAP mocks, M2 provider cache and
+        # security context. It is listed first because it is the superset; the
+        # explicit calls below keep each reset visible and make this fixture
+        # correct even if that ever changes.
         orchestrator.reset()
         reload_config()
         Network.load.cache_clear()
@@ -71,6 +74,8 @@ def _clean_state():
         ledger.reset(write_file=False)
         registry.reset()
         exec_orchestrator.reset()
+        reset_security()
+        reset_runtime_metrics()
 
     wipe()
     yield

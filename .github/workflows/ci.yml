@@ -54,6 +54,23 @@ jobs:
         # if package.json and package-lock.json disagree.
         run: npm ci
 
+      # Runtime dependencies only (`--omit=dev`): a vulnerability in a build tool
+      # is a supply-chain concern for the build machine, not for what ships. This
+      # is BLOCKING because the production tree currently has zero findings, so a
+      # new one is a real regression rather than background noise.
+      - name: Audit production frontend dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      # Informational on purpose. A blocking Python audit turns a fresh upstream
+      # advisory into a red build on a repository nobody has changed, which trains
+      # people to ignore it. The output is visible; the judgement stays human.
+      - name: Audit Python runtime dependencies (informational)
+        continue-on-error: true
+        run: |
+          python -m pip install pip-audit
+          python -m pip-audit -r requirements.txt || echo "::warning::pip-audit reported findings; review above"
+
       - name: Install Chromium for the browser suite
         working-directory: frontend
         # --with-deps pulls the shared libraries Chromium needs on a bare runner.
@@ -61,7 +78,7 @@ jobs:
         # without this the most valuable tests would silently not run.
         run: npx playwright install --with-deps chromium
 
-      # The single gate. Fails the job if any of the nine checks fail.
+      # The single gate. Fails the job if any of the ten checks fail.
       - name: Run verification gate
         run: bash scripts/verify.sh
 
@@ -150,6 +167,95 @@ jobs:
           after=$(curl -s http://127.0.0.1:8787/api/health | python3 -c 'import json,sys; print(json.load(sys.stdin)["ledger"]["records"])')
           test "$before" = "$after" || { echo "::error::re-execution appended records ($before -> $after)"; exit 1; }
           echo "idempotent re-execution OK ($after records)"
+
+      # The optimizer is opt-in, so CI must prove it works WHERE IT WILL RUN --
+      # in the image, with the real solver -- and that a better plan does NOT get a
+      # shorter path to execution. This is the acceptance test for the M2 boundary:
+      # a different provider, the same governance.
+      - name: Optimizer mode still stops at the human gate
+        run: |
+          set -euo pipefail
+          docker rm -f sj || true
+          docker run -d --name sj -p 8787:8787 \
+            -e SANJEEVANI_PLAN_PROVIDER=optimizer sanjeevani:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/api/health >/dev/null 2>&1 && break
+            [ "$i" -eq 30 ] && { docker logs sj; exit 1; }
+            sleep 1
+          done
+
+          curl -fsS -X POST http://127.0.0.1:8787/api/demo/run >/dev/null
+          curl -fsS http://127.0.0.1:8787/api/state > /tmp/state.json
+          python3 - <<'PY'
+          import json, sys
+          state = json.load(open("/tmp/state.json"))
+          plan = state["plan"]
+          assert plan["source"] == "optimizer", f"expected an optimizer plan, got {plan['source']}"
+          assert state["governance"]["state"] == "APPROVAL_REQUIRED", state["governance"]["state"]
+          trace = state["m2"]
+          assert trace is not None, "no optimizer trace on /api/state"
+          verification = trace["verification"]
+          assert verification["milp_available"], verification["milp_note"]
+          assert verification["milp_agrees_with_exhaustive"], (
+              f"MILP and exhaustive search disagree: {verification['milp_choices']} vs "
+              f"{trace['selected_plan']['choices']}"
+          )
+          assert trace["constraints"]["violations"] == [], trace["constraints"]["violations"]
+          print(f"optimizer plan {plan['plan_id']} {plan['strategy']} "
+                f"${plan['cost']:,.0f} · solver={trace['solver']} · MILP agrees with exhaustive search")
+          PY
+
+          # A better plan must still be refused without an approval.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            "http://127.0.0.1:8787/api/plans/$(python3 -c 'import json;print(json.load(open("/tmp/state.json"))["plan"]["plan_id"])')/execute")
+          test "$code" = "409" || { echo "::error::expected 409 before approval in optimizer mode, got $code"; exit 1; }
+          echo "optimizer mode is governed (409) OK"
+
+      # Authentication is off by default, so the default demo path proves nothing
+      # about it. This boots the SAME image with auth on and asserts the original
+      # authorization bypass is closed: an unauthenticated approve is refused.
+      - name: Authentication closes the unauthenticated approval path
+        run: |
+          set -euo pipefail
+          docker rm -f sj || true
+          docker run -d --name sj -p 8787:8787 \
+            -e SANJEEVANI_AUTH_ENABLED=true \
+            -e SANJEEVANI_JWT_SECRET=ci-only-secret-that-is-at-least-32-bytes-long \
+            sanjeevani:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/api/health >/dev/null 2>&1 && break
+            [ "$i" -eq 30 ] && { docker logs sj; exit 1; }
+            sleep 1
+          done
+
+          # The health probe must work AND must disclose that auth is on.
+          curl -fsS http://127.0.0.1:8787/api/health \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["security"]["auth_enabled"] is True, d["security"]'
+
+          # The original defect, replayed: name an approver with no credential.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"actor_id":"meera.iyer","rationale":"no credential at all"}' \
+            http://127.0.0.1:8787/api/plans/PLAN-001/approve)
+          test "$code" = "401" || { echo "::error::expected 401 for an unauthenticated approval, got $code"; exit 1; }
+          echo "unauthenticated approval refused (401) OK"
+
+          # Read routes are guarded too.
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/state)
+          test "$code" = "401" || { echo "::error::expected 401 for an unauthenticated state read, got $code"; exit 1; }
+          echo "unauthenticated state read refused (401) OK"
+
+          # And a real credential still works, so the control is not simply shut.
+          token=$(curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d '{"username":"svc.admin","password":"demo-admin-2026"}' \
+            http://127.0.0.1:8787/api/auth/token \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" \
+            http://127.0.0.1:8787/api/state)
+          test "$code" = "200" || { echo "::error::expected 200 for an authenticated read, got $code"; exit 1; }
+          echo "authenticated read OK"
 
       - name: Dump container logs on failure
         if: failure()

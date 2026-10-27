@@ -1,24 +1,28 @@
 """M2 BOUNDARY -- the RecoveryPlan provider.
 
 M3 consumes `RecoveryPlan`; it never computes one. This module is the *only*
-place in M3 that knows plans come from a fixture, so replacing it with Member 2's
+place in M3 that knows where plans come from, so swapping the fixture for the
 real optimizer is a one-class change.
 
     M1 -> Impact -> [ this module ] -> RecoveryPlan -> M3
 
-Swap procedure (documented in docs/mock-boundaries.md):
-  1. Implement `RecoveryPlanProvider` against the real solver.
-  2. Point `get_provider()` at it (env var `SANJEEVANI_PLAN_PROVIDER=optimizer`).
-  3. Run `pytest tests/contract` -- the contract is identical, so nothing in M3
-     changes.
+Two implementations satisfy the same Protocol:
 
-M3 does NOT: solve a MILP, replay a digital twin, or optimize a cost. If a number
-looks wrong here, the bug is M2's, and this module will say so.
+  ``fixture``    -- hand-set YAML (the default; see docs/mock-boundaries.md).
+  ``optimizer``  -- ``OptimizerRecoveryPlanProvider``, which solves a real
+                    multi-objective binary program over the configured recovery
+                    catalogue and evaluates it with a deterministic digital twin
+                    (``backend/m2/optimizer.py``). Select it with
+                    ``SANJEEVANI_PLAN_PROVIDER=optimizer``.
+
+M3 does not need to know which one is active: both return the same frozen
+contract, and ``plan.source`` records which produced it.
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from typing import ClassVar, Literal, Protocol
 
 from backend.config import m2_fixture
@@ -143,6 +147,105 @@ class FixtureRecoveryPlanProvider:
         }
 
 
+class OptimizerRecoveryPlanProvider:
+    """M2's real optimizer behind the fixture's interface.
+
+    Solves the multi-objective recovery program in ``backend/m2/optimizer.py``
+    using the deterministic digital twin in ``backend/m2/digital_twin.py``. Every
+    plan it returns carries ``source="optimizer"`` and can be re-derived
+    bit-for-bit from the seeded network and the configured catalogue.
+
+    Results are memoised per ``(event_id, scenario_id)`` because the API reads the
+    recommended plan and the ranked list in the same request; solving the same
+    instance twice would be wasted work, not extra safety.
+    """
+
+    SOURCE: ClassVar[Literal["optimizer", "fixture"]] = "optimizer"
+
+    def __init__(self) -> None:
+        self._cache: dict[tuple[str, str | None], tuple[RecoveryPlan, list[RecoveryPlan], dict]] = {}
+        self._lock = threading.RLock()
+
+    def _solve(
+        self, event_id: str, scenario_id: str | None
+    ) -> tuple[RecoveryPlan, list[RecoveryPlan], dict]:
+        from backend.m2.optimizer import optimize_for_event
+
+        key = (event_id, scenario_id)
+        with self._lock:
+            cached = self._cache.get(key)
+            if cached is not None:
+                return cached
+        try:
+            result = optimize_for_event(event_id=event_id, scenario_id=scenario_id)
+        except Exception as exc:
+            raise RecoveryPlanError(
+                f"Optimizer could not produce a plan for event {event_id!r} "
+                f"(scenario {scenario_id!r}): {type(exc).__name__}: {exc}"
+            ) from exc
+        solved = (result.recommended, result.ranked, result.trace)
+        with self._lock:
+            self._cache[key] = solved
+        return solved
+
+    def plan_for_event(self, event_id: str, scenario_id: str | None = None) -> RecoveryPlan:
+        recommended, _, _ = self._solve(event_id, scenario_id)
+        return recommended
+
+    def ranked_plans(self, event_id: str, scenario_id: str | None = None) -> list[RecoveryPlan]:
+        _, ranked, _ = self._solve(event_id, scenario_id)
+        return ranked
+
+    def plan_by_id(self, plan_id: str) -> RecoveryPlan:
+        with self._lock:
+            for (recommended, ranked, _trace) in self._cache.values():
+                if recommended.plan_id == plan_id:
+                    return recommended
+                for candidate in ranked:
+                    if candidate.plan_id == plan_id:
+                        return candidate
+        raise RecoveryPlanError(
+            f"Unknown plan_id {plan_id!r}. The optimizer only knows plans it has solved "
+            "in this process; call plan_for_event first."
+        )
+
+    def last_trace(self) -> dict | None:
+        """The most recent optimization trace, for the API's evidence panel."""
+        with self._lock:
+            if not self._cache:
+                return None
+            return next(reversed(self._cache.values()))[2]
+
+    def reset(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+    def describe(self) -> dict[str, object]:
+        from backend.m2.digital_twin import build_catalogue
+
+        catalogue = build_catalogue()
+        return {
+            "provider": type(self).__name__,
+            "source": self.SOURCE,
+            "reality": "solved optimization over a deterministic digital twin",
+            "optimizer_implemented": True,
+            "owner": "M2",
+            "consumed_by": "M3",
+            "catalogue_version": catalogue.catalogue_version,
+            "actions_considered": [a.id for a in catalogue.actions],
+            "objective": (
+                "minimise total_recovery_cost + w * expected_unrecovered_value, subject to "
+                "budget, service-level, cold-chain and recovery-time ceilings"
+            ),
+            "disclosure": (
+                "The recovery ACTION CATALOGUE (config/recovery_options.yaml) is configured; "
+                "the OUTCOME of choosing it is computed by deterministic simulation over the "
+                "seeded network and device traces. No sampling, no LLM, no SAP tenant. Every "
+                "plan carries source='optimizer' and a full solver trace."
+            ),
+        }
+
+
 class UnavailableRecoveryPlanProvider:
     """Fails closed when the provider is deliberately disabled (red-team case)."""
 
@@ -159,18 +262,48 @@ class UnavailableRecoveryPlanProvider:
         return {"provider": "UnavailableRecoveryPlanProvider", "available": False}
 
 
+def provider_mode() -> str:
+    """The configured provider mode, lower-cased."""
+    return os.environ.get("SANJEEVANI_PLAN_PROVIDER", "fixture").lower()
+
+
+#: One provider instance per mode. The orchestrator asks for the recommended plan
+#: and the ranked list in the same run; handing it two fresh optimizer instances
+#: would solve the same binary program twice for no benefit. Instance state is
+#: only a memo cache, so a stale entry can never change an answer -- but tests
+#: and the demo reset still clear it explicitly.
+_PROVIDERS: dict[str, RecoveryPlanProvider] = {}
+_PROVIDERS_LOCK = threading.RLock()
+
+
 def get_provider() -> RecoveryPlanProvider:
     """Resolve the configured provider.
 
-    `SANJEEVANI_PLAN_PROVIDER=optimizer` is the intended production switch and is
-    explicitly NOT implemented in the MVP.
+    ``fixture`` (default) is the offline, hand-set stand-in that keeps the demo
+    byte-reproducible. ``optimizer`` turns on the real solve. ``unavailable`` is
+    the red-team switch that proves the loop stops rather than inventing a plan.
     """
-    mode = os.environ.get("SANJEEVANI_PLAN_PROVIDER", "fixture").lower()
-    if mode == "unavailable":
-        return UnavailableRecoveryPlanProvider()
-    if mode == "optimizer":
-        raise NotImplementedError(
-            "The real M2 optimizer is not part of the MVP (see docs/mock-boundaries.md). "
-            "Implement RecoveryPlanProvider in backend/m2 and register it here."
-        )
-    return FixtureRecoveryPlanProvider()
+    mode = provider_mode()
+    with _PROVIDERS_LOCK:
+        existing = _PROVIDERS.get(mode)
+        if existing is not None:
+            return existing
+        if mode == "unavailable":
+            provider: RecoveryPlanProvider = UnavailableRecoveryPlanProvider()
+        elif mode == "optimizer":
+            provider = OptimizerRecoveryPlanProvider()
+        elif mode == "fixture":
+            provider = FixtureRecoveryPlanProvider()
+        else:
+            raise NotImplementedError(
+                f"Unknown SANJEEVANI_PLAN_PROVIDER={mode!r}. Known modes: "
+                "fixture, optimizer, unavailable."
+            )
+        _PROVIDERS[mode] = provider
+        return provider
+
+
+def reset_provider() -> None:
+    """Drop every cached provider. Used by the demo reset and by tests."""
+    with _PROVIDERS_LOCK:
+        _PROVIDERS.clear()

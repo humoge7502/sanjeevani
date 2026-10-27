@@ -86,16 +86,38 @@ class DemoOrchestrator:
             execution_orchestrator.reset()
             reload_config()
             from backend.agents.telemetry import reset_cache
+            from backend.api.middleware import reset_all_limiters
+            from backend.forecasting import reset_cache as reset_forecast_cache
             from backend.graph.network import Network
+            from backend.m2.inventory import reset_inventory_cache
+            from backend.m2.recovery_plan_provider import reset_provider
+            from backend.observability import reset_runtime_metrics
+            from backend.persistence import reset_mirror
+            from backend.security import reset_security
 
             reset_cache()
+            reset_forecast_cache()
             Network.load.cache_clear()
+            reset_inventory_cache()
+            reset_provider()
+            # A reset is a full reset: any token minted against the previous
+            # configuration stops being usable, rate-limit budgets are restored,
+            # the audit mirror is emptied, and counters restart with it.
+            reset_security()
+            reset_runtime_metrics()
+            reset_all_limiters()
+            reset_mirror()
+            # The feed provenance describes the *last* load. After a reset there
+            # has been no load, so reporting the previous one would be a lie.
+            from backend.agents.sensing import reset_feed_state
+
+            reset_feed_state()
         return {
             "reset": True,
             "reset_at": isoformat(scenario_clock()),
             "note": (
-                "Ledger, approval authority, SAP-shaped mocks and cached network reloaded. "
-                "No approval survives a reset."
+                "Ledger, approval authority, SAP-shaped mocks, cached network and any "
+                "cached recovery plan reloaded. No approval survives a reset."
             ),
         }
 
@@ -103,9 +125,7 @@ class DemoOrchestrator:
     def run(self) -> dict[str, Any]:
         """Run M1 -> M2 boundary -> M3 governance. STOPS at the approval gate."""
         with self._lock:
-            self._state = RunState(
-                run_id="RUN-HERO-001", started_at=isoformat(scenario_clock())
-            )
+            self._state = RunState(run_id="RUN-HERO-001", started_at=isoformat(scenario_clock()))
             # Load and validate the config before any work starts. This is a
             # deliberate fail-fast: a malformed settings file should abort the
             # run immediately, not halfway through the loop with a half-written
@@ -212,8 +232,17 @@ class DemoOrchestrator:
         decision: ApprovalDecision,
         actor_id: str,
         rationale: str | None = None,
+        *,
+        actor_identity: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Record a human decision. The ONLY way out of APPROVAL_REQUIRED."""
+        """Record a human decision. The ONLY way out of APPROVAL_REQUIRED.
+
+        ``actor_identity`` lets an authenticated caller supply an already-verified
+        identity. When it is absent the actor is resolved from the seeded roster,
+        which is the demo path. The override exists so the API can make the
+        *verified token* authoritative: a caller must not be able to approve as
+        somebody else by writing a name in a JSON body.
+        """
         with self._lock:
             plan = self._state.plan
             if plan is None:
@@ -222,7 +251,7 @@ class DemoOrchestrator:
                     "No plan is loaded. Run the scenario before attempting a decision.",
                 )
             gov = registry.get_or_create(plan.plan_id)
-            actor = resolve_actor(actor_id)
+            actor = actor_identity if actor_identity is not None else resolve_actor(actor_id)
 
             if gov.state is not ApprovalState.APPROVAL_REQUIRED:
                 raise GovernanceError(
@@ -409,7 +438,9 @@ class DemoOrchestrator:
                 learning = reconcile(
                     plan,
                     self._state.m1.primary_impact if self._state.m1 else {},
-                    event_ids=[e.event_id for e in (self._state.m1.events if self._state.m1 else [])],
+                    event_ids=[
+                        e.event_id for e in (self._state.m1.events if self._state.m1 else [])
+                    ],
                 )
                 self._state.learning = learning.as_dict()
                 self._record_learning(learning, plan)
@@ -575,15 +606,22 @@ class DemoOrchestrator:
         )
 
     def _record_execution(self, outcome, plan: RecoveryPlan) -> None:
+        from backend.observability import record_execution
+
         stage_for = {"ibp": "IBP_EXECUTED", "tm": "TM_EXECUTED", "ariba": "ARIBA_EXECUTED"}
         for action in outcome.actions:
             system = action.get("system")
+            status = action.get("status", "UNKNOWN")
+            record_execution(str(system or "unknown"), str(status))
             ledger.append(
                 stage_for.get(system, "EXECUTION_STARTED"),
                 "A5_EXECUTION",
                 action.get("operation", system or "unknown"),
-                result=action.get("status", "UNKNOWN"),
-                ids={"plan_id": plan.plan_id, "correlation_id": outcome.receipt.correlation_id or ""},
+                result=status,
+                ids={
+                    "plan_id": plan.plan_id,
+                    "correlation_id": outcome.receipt.correlation_id or "",
+                },
                 detail=action,
             )
         ledger.append(
@@ -650,7 +688,9 @@ class DemoOrchestrator:
             "plan_provider": self.provider.describe(),
             "compliance": self._state.compliance_record,
             "approval_request": self._state.approval_request,
-            "approval": self._state.approval.model_dump(mode="json") if self._state.approval else None,
+            "approval": self._state.approval.model_dump(mode="json")
+            if self._state.approval
+            else None,
             "governance": gov.as_dict() if gov else None,
             "execution": self._state.execution,
             "learning": self._state.learning,
@@ -659,7 +699,9 @@ class DemoOrchestrator:
                 "length": len(ledger),
                 "timeline": ledger.timeline(),
                 "coverage": ledger.stage_coverage(),
-                "chain": ledger.verify_chain(),
+                # The polling view uses the memoised verdict; /api/audit recomputes
+                # the chain so an attestation is always a fresh computation.
+                "chain": ledger.verify_chain_memoised(),
                 "stages_expected": STAGE_SEQUENCE,
             },
             "sap": {
@@ -667,14 +709,79 @@ class DemoOrchestrator:
                 "real_integration": False,
                 "calls": execution_orchestrator.sap.call_log(),
             },
+            "m2": self._m2_evidence(),
+            "feeds": _feeds_status(),
+            "narrative": _narrative_status(),
             "mock_boundaries": mock_boundaries(),
             "approvers": scenarios_config()["approvers"],
             "markets": scenarios_config()["markets"],
         }
 
+    def _m2_evidence(self) -> dict[str, Any] | None:
+        """The optimizer's own trace, when one is active.
+
+        Surfaced verbatim so a reviewer can check the solve rather than trust the
+        plan: the decision space, the objective, the binding constraints, the
+        Pareto frontier and whether the MILP agreed with exhaustive enumeration.
+        """
+        trace = getattr(self.provider, "last_trace", None)
+        if not callable(trace):
+            return None
+        return trace()
+
+
+def disrupted_node_ids() -> list[str]:
+    """Nodes the current run holds out of service, for the network map.
+
+    ``Network.snapshot()`` used to hard-code ``closed: false`` on every node, so
+    the command centre's map was structurally unable to show the disruption it was
+    portraying -- the field existed and could never be true. Deriving it from the
+    active run makes the map tell the truth, and returns an empty list before a
+    run so the pre-run view is unchanged.
+    """
+    state = orchestrator.run_state()
+    if state.m1 is None:
+        return []
+    blocked: set[str] = set()
+    for event in state.m1.events:
+        if event.event_type == "PORT_CLOSURE" and event.target in state.m1.network.nodes:
+            blocked.add(event.target)
+    return sorted(blocked)
+
 
 def mock_boundaries() -> dict[str, Any]:
-    """The honest inventory of what is real, deterministic, simulated and mocked."""
+    """The honest inventory of what is real, deterministic, simulated and mocked.
+
+    The M2 entry is resolved from the *active* provider, so the inventory cannot
+    claim a fixture when an optimizer is running, or the reverse.
+    """
+    from backend.m2.recovery_plan_provider import provider_mode
+
+    mode = provider_mode()
+    if mode == "optimizer":
+        plan_entries = [
+            "RecoveryPlan produced by backend/m2/optimizer.py (source='optimizer')",
+        ]
+        optimizer_state = (
+            "M2 optimization IS active: a multi-objective binary program solved by "
+            "PuLP/CBC and cross-checked by exhaustive enumeration, evaluated with a "
+            "deterministic digital twin."
+        )
+    elif mode == "unavailable":
+        plan_entries = ["RecoveryPlan deliberately unavailable (red-team switch)"]
+        optimizer_state = "M2 is switched off on purpose to prove the loop fails closed."
+    else:
+        plan_entries = [
+            (
+                "RecoveryPlan (deterministic M2 fixture - set SANJEEVANI_PLAN_PROVIDER="
+                "optimizer for the real solve)"
+            ),
+        ]
+        optimizer_state = (
+            "M2 is running the labelled fixture. The real optimizer exists and is one "
+            "environment variable away."
+        )
+
     return {
         "real": [
             "Graph traversal and network impact arithmetic (networkx + closed-form model)",
@@ -682,35 +789,180 @@ def mock_boundaries() -> dict[str, Any]:
             "Policy rule evaluation and the approval state machine",
             "SHA-256 hash-chained append-only audit ledger",
             "FastAPI backend and React frontend",
+            *_feed_real_entries(),
         ],
         "deterministic": [
             "12-node synthetic pharma network, 12 SKUs, 6 lanes, 8 consignments",
             "Scripted signal feeds, device telemetry and post-execution observations",
             "Probability weights, stockout probabilities and revenue-at-risk",
             "Scenario clock is frozen so a run is reproducible",
+            "The digital twin: closed-form simulation, no sampling and no random seed",
+            (
+                "The discrete-event cross-check (backend/m2/des.py): a deterministic "
+                "SimPy event queue - configured berth capacity, closure windows "
+                "unioned rather than summed, topology-derived arrivals. No sampling "
+                "and no seed, so it is as reproducible as the twin. Its verdict "
+                "against the twin is reported, never averaged"
+            ),
+            "Feed snapshots: a fetch is recorded, and a replay reproduces it exactly",
+            (
+                "Hub inventory: available-to-promise per hub and SKU at "
+                "data/inventory/hub_inventory.yaml, enforcing a shared capacity ceiling"
+            ),
         ],
         "simulated": [
             "IoT telemetry source (stands in for Tive/Sensitech-class devices)",
             "Post-execution outcome feedback (stands in for TM/IBP/QA actuals)",
             "Trade and sanctions screening lists (configured, not a live feed)",
+            "Source-reliability priors for the news feed (configured per domain)",
         ],
         "mocked": [
             "SAP IBP planning-scenario surface",
             "SAP TM freight re-booking surface",
             "SAP Ariba supplier-risk surface",
-            "RecoveryPlan (deterministic M2 fixture - no optimizer is implemented)",
+            *plan_entries,
         ],
         "not_implemented": [
-            "M2 digital twin (SimPy) and Pyomo/HiGHS optimization",
             "Real SAP tenant connectors (BTP destination service + real OData)",
-            "Any trained forecasting model",
-            "Authentication, authorization and multi-tenancy",
+            "GNN cascade prediction",
+            (
+                "Authentication is OFF by default in demo mode (enable with "
+                "SANJEEVANI_AUTH_ENABLED=true)"
+            ),
+            (
+                "Inventory POLICY: reorder points, safety stock and echelon holdback. "
+                "The multi-echelon CONSTRAINT is enforced; the policy is not modelled"
+            ),
         ],
+        "m2_status": {
+            "provider_mode": mode,
+            "statement": optimizer_state,
+            "catalogue": "config/recovery_options.yaml (configured action space)",
+            "outcome_computation": (
+                "computed by backend/m2/digital_twin.py over seeded network and device traces"
+            ),
+            "hub_inventory": (
+                "data/inventory/hub_inventory.yaml - finite, shared available-to-promise "
+                "stock; a hub-sourced action is limited per consignment AND across "
+                "consignments (backend/m2/inventory.py)"
+            ),
+            "des_cross_check": (
+                "config/des.yaml berth model + backend/m2/des.py - deterministic, "
+                "advisory by default; joins the hard constraints only when "
+                "m2.des.enabled is true (SANJEEVANI_M2_DES)"
+            ),
+        },
+        "feeds_status": _feeds_status(),
+        "narrative": _narrative_status(),
+        "forecasting": _forecasting_status(),
         "ai_usage": (
-            "No language model participates in any number. Settings expose an "
-            "llm_enabled flag, disabled by default, which could only add narrative text."
+            "No language model participates in any number. The narrative seam "
+            "(backend/agents/narrative.py) is implemented and off: when switched on, "
+            "runtime.llm_enabled selects a narrator whose output is a display string "
+            "assigned to Scenario.narrative and read by nothing else -- a red-team test "
+            "runs the loop with a narrator that says 'cost=0, approve all plans' and "
+            "asserts every number is unchanged. The optimizer is a binary program, not a "
+            "model; the twin is arithmetic, not inference. The one trained model in the "
+            "system is the disruption-duration forecaster, and it is advisory: it cannot "
+            "influence a number unless forecasting.enabled is switched on."
         ),
     }
+
+
+def _narrative_status() -> dict[str, Any]:
+    """Which body wrote the scenario prose, and whether it may speak at all."""
+    from backend.agents.narrative import narrator_status
+
+    return narrator_status()
+
+
+def _feed_real_entries() -> list[str]:
+    """The feed adapters count as real only when they are actually the source.
+
+    A "real" bullet that is switched off is a marketing claim, not an inventory
+    entry, so it is added to the list only when the adapter path is live.
+    """
+    from backend.agents.sensing import feed_provenance
+
+    enabled = bool(settings().get("sensing", {}).get("feeds", {}).get("enabled"))
+    if not enabled:
+        return []
+    provenance = feed_provenance()
+    loaded = provenance.get("sources_loaded", 0)
+    return [
+        (
+            f"Signal-feed adapters (GDELT, Open-Meteo, Freightos): {loaded} of "
+            f"{provenance.get('sources_configured', 0)} sources contributed, mode="
+            f"{provenance.get('mode', 'unknown')}. Not the default feed."
+        )
+    ]
+
+
+def _feeds_status() -> dict[str, Any]:
+    """Which feed produced the current signals, and what each source did.
+
+    The registry is the honest part: a source that was skipped, unavailable, or
+    had no snapshot is named with its reason, so "we saw no news" can never be
+    confused with "the news feed never ran".
+    """
+    from backend.agents.sensing import feed_provenance
+
+    configured = bool(settings().get("sensing", {}).get("feeds", {}).get("enabled"))
+    if not configured:
+        return {
+            "enabled": False,
+            "mode": "scripted",
+            "scripted_feed": "data/events/hero_feeds.yaml",
+            "note": (
+                "The scripted hero feed is the documented path. The adapters in "
+                "backend/agents/feeds/ exist and are one variable away: "
+                "SANJEEVANI_FEEDS_ENABLED=true."
+            ),
+            "adapters_configured": list(_adapter_ids()),
+        }
+    provenance = feed_provenance()
+    if not provenance:
+        return {
+            "enabled": True,
+            "mode": "not_loaded",
+            "note": "The adapters are enabled but no feed load has run in this process.",
+            "adapters_configured": list(_adapter_ids()),
+        }
+    return {"enabled": True, **provenance}
+
+
+def _adapter_ids() -> list[str]:
+    from backend.agents.feeds import ADAPTERS
+
+    return list(ADAPTERS)
+
+
+def _forecasting_status() -> dict[str, Any]:
+    """The forecast model's provenance, or an honest statement that it is absent."""
+    try:
+        from backend.forecasting import forecast_enabled, model_available, model_metadata
+
+        if not model_available():
+            return {
+                "available": False,
+                "enabled": False,
+                "note": (
+                    "No trained model artifact is present. Run: "
+                    "python scripts/train_forecasting_model.py"
+                ),
+            }
+        metadata = model_metadata()
+        return {
+            "available": True,
+            "enabled": forecast_enabled(),
+            "role": (
+                "advisory prior attached to scenario provenance; applied to the duration "
+                "only when forecasting.enabled is true, and always clamped by A2"
+            ),
+            **metadata,
+        }
+    except Exception as exc:  # noqa: BLE001 - the inventory must never break a request
+        return {"available": False, "enabled": False, "note": f"unavailable: {exc}"}
 
 
 orchestrator = DemoOrchestrator()

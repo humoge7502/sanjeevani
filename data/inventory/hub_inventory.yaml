@@ -1,0 +1,63 @@
+# SANJEEVANI downstream hub inventory — available-to-promise by hub and SKU.
+#
+# WHY THIS FILE EXISTS. Before it, `EXPEDITE_FROM_HUB` was free: any consignment
+# could draw any quantity from the nearest hub, so the optimizer could "recover"
+# the whole disruption out of stock that was not there. That is the classic way a
+# multi-echelon model lies. This file gives the hub a finite, shared resource, and
+# `backend/m2/optimizer.py` enforces it as a real capacity constraint across all
+# consignments at once.
+#
+# UNITS. `available_units` is available-to-promise in the SAME unit as
+# `data/shipments/shipments.yaml:units`. A consignment may only be expedited from
+# a hub that holds at least its own quantity; two consignments competing for one
+# hub may not collectively exceed it.
+#
+# PROVENANCE. Synthetic seed data, like the rest of the network. The values are
+# engineering estimates chosen so the constraint *binds* on the hero disruption --
+# a capacity that never binds proves nothing. Concretely, on LANE-MUM-BIO-EU at
+# the hero scenario's t0:
+#
+#   WH-BOM / BIO-001   6,000  vs SHIP-002's 9,000  -> too small, alone
+#   WH-BOM / BIO-002   2,600  vs SHIP-003's 2,600  -> exactly enough
+#   WH-FRA / BIO-001  12,000  vs SHIP-004 5,400 + SHIP-005 7,200 = 12,600
+#                                                  -> binds: only one of the two
+#   WH-FRA / BIO-002   3,000  vs SHIP-001's 4,200  -> too small, alone
+#
+# SO WHAT THIS IS NOT. It is not a real company's inventory, it is not a forecast,
+# and nothing here was learned. It is a stated constraint so the optimizer's answer
+# can be wrong in a visible way instead of wrong in an invisible one.
+#
+# A hub/SKU pair absent from this file means ZERO available, and the trace says so.
+# Silence is not a licence to assume stock.
+
+meta:
+  inventory_version: "1.0.0"
+  as_of_utc: "2026-09-30T06:00:00Z"
+  source: synthetic_seed
+  note: >
+    Available-to-promise units at each downstream hub, at the scenario's t0.
+    Consumed only by recovery actions that declare
+    `consumes_hub_inventory: true` in config/recovery_options.yaml.
+
+hubs:
+  WH-BOM:
+    name: Mumbai Cold Hub
+    positions:
+      BIO-001: 6000
+      BIO-002: 2600
+
+  WH-DEL:
+    name: Delhi Distribution Centre
+    positions:
+      GEN-001: 320000
+      GEN-003: 180000
+      GEN-007: 120000
+
+  WH-FRA:
+    name: Frankfurt EU Consolidation Cold Hub
+    positions:
+      BIO-001: 12000
+      BIO-002: 3000
+      GEN-001: 240000
+      GEN-003: 90000
+      GEN-007: 150000

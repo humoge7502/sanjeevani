@@ -103,6 +103,27 @@ class Shipment:
         return round(self.units * self.unit_price_usd, 2)
 
 
+def corridor_remaining_fraction(shipment: Shipment, lane: Lane) -> float:
+    """Fraction of a lane's corridor this consignment has left to travel.
+
+    The canonical definition, shared by A3's impact model and M2's digital twin:
+
+        remaining = (hops left) / (hops total)
+
+    Returns ``1.0`` when the consignment's current node is not on the lane at
+    all, which is the conservative reading: we cannot tell how much of the
+    corridor it still has to cover, so we assume all of it. M2 must not invent a
+    more favourable number than M1 would.
+    """
+    path = lane.path
+    if shipment.current_node not in path:
+        return 1.0
+    idx = path.index(shipment.current_node)
+    total_hops = max(len(path) - 1, 1)
+    remaining = max(len(path) - 1 - idx, 0)
+    return remaining / total_hops
+
+
 class Network:
     """The seeded supply network plus its derived graph."""
 
@@ -282,8 +303,15 @@ class Network:
     def red_sea_lanes(self) -> list[Lane]:
         return [lane for lane in self.lanes.values() if lane.red_sea_exposed]
 
-    def snapshot(self) -> dict[str, Any]:
-        """Serialisable view for the frontend network map."""
+    def snapshot(self, closed_nodes: list[str] | None = None) -> dict[str, Any]:
+        """Serialisable view for the frontend network map.
+
+        ``closed_nodes`` is supplied by the caller (the orchestrator, from the
+        active run) rather than read from a file, so the map reflects the
+        disruption being described instead of a constant. It defaults to empty,
+        which keeps the pre-run view unchanged.
+        """
+        closed = set(closed_nodes or ())
         return {
             "meta": self.meta,
             "nodes": [
@@ -295,7 +323,7 @@ class Network:
                     "city": n.city,
                     "temp_class": n.temp_class,
                     "risk_score": n.risk_score,
-                    "closed": False,
+                    "closed": n.id in closed,
                     "detail": n.raw,
                 }
                 for n in self.nodes.values()

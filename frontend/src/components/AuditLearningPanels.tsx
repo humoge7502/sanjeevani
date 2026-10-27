@@ -296,6 +296,9 @@ export function LearningPanel({ learning }: { learning: LearningPayload }): JSX.
       subtitle={outcome.learning_note}
       actions={
         <div className="row">
+          <Badge tone={scorecard.status === "RECONCILED" ? "badge--ok" : "badge--plain"} glyph={scorecard.status === "RECONCILED" ? "✓" : "…"}>
+            {scorecard.status === "RECONCILED" ? "reconciled" : "pending observation"}
+          </Badge>
           <Badge tone="badge--violet" glyph="◈">
             no retraining
           </Badge>

@@ -1,4 +1,4 @@
-# Security threat model (STRIDE)
+﻿﻿# Security threat model (STRIDE)
 
 **Scope:** M3's governance and execution plane, its API, the SAP-shaped mocks,
 the audit ledger, and the demo's reliability surface.
@@ -8,10 +8,64 @@ is either **mitigated** (with the test that proves it), **accepted** (with a
 reason), or **deferred** (with the production requirement named). Nothing is
 silently unaddressed.
 
-**Honest framing.** This is a hackfest prototype with no authentication. Several
-findings are therefore accepted *for the MVP* and would be blocking for a real
-deployment. That is stated here rather than elided, because a threat model that
-concludes "no issues" is a threat model nobody read.
+**Honest framing.** This is a hackfest prototype. Authentication, roles and tenancy
+now exist and are complete, but they are **off by default** so the offline demo is
+unchanged — which means the default configuration still has no authentication, and
+several findings below are accepted *for the MVP* and would be blocking for a real
+deployment. Where a control exists but is opt-in, the table says so. A threat model
+that concludes "no issues" is a threat model nobody read.
+
+---
+
+## Authentication — what exists, and what it does not cover
+
+Enabled with `SANJEEVANI_AUTH_ENABLED=true` and a `SANJEEVANI_JWT_SECRET` of at
+least 32 bytes. Full rationale: [ADR 0011](decisions/0011-authentication-is-opt-in.md).
+
+**Covered when enabled:**
+
+| Control | Detail |
+|---|---|
+| Identity from a credential, not a body field | HS256 JWT. Nothing in a request can create a principal. |
+| Approver taken from the token | A body `actor_id` that disagrees is `403 ACTOR_MISMATCH`. |
+| Role taken from the token | Not from `config/scenarios.yaml`, so a roster edit cannot grant authority. |
+| Algorithm pinned | `algorithms=["HS256"]`, so an `alg: none` token is refused. |
+| Lifetime, audience and issuer enforced | `exp` is **required**, not treated as "never expires". |
+| Revocation | The account is re-read from the identity store on every request. |
+| Destructive operations gated | `POST /api/demo/reset` requires `admin`. It truncates the ledger. |
+| Weak or missing secret | A **startup failure**, so a deployment cannot believe it is authenticated when it is not. |
+| Password storage | PBKDF2-HMAC-SHA256 (stdlib), iteration count stored in the hash, constant-time comparison. |
+| Posture is observable | `/api/health` → `security.auth_enabled`, `ephemeral_jwt_secret`; `/api/state` → `caller.authenticated`. |
+
+**Not covered, and named as production requirements:**
+
+| Gap | Why it matters |
+|---|---|
+| No account lockout or login throttling beyond the general write limiter | Credential stuffing is slowed, not stopped. |
+| No MFA | Single-factor only. |
+| No key rotation | The JWT secret is static for the life of the process. |
+| No audit of *successful* authentications | Failures are counted (`sanjeevani_auth_failures_total`); successes are only in the access log. |
+| No tenant partition in the approval registry | A tenant claim exists on the principal and on ledger records, but the registry is process-global. Two tenants in one process would share it. |
+| Identity is a file | `config/identity.yaml`, not OIDC and not a managed directory. |
+
+### Demo credentials
+
+`config/identity.yaml` ships **published demo credentials** so a reviewer can sign
+in. They are documented here on purpose and must be replaced, together with the JWT
+secret, before any deployment reachable from a network:
+
+| Account | Role | Tenant | Password |
+|---|---|---|---|
+| `meera.iyer` | `supply_planning_head` | `acme-pharma` | `demo-meera-2026` |
+| `rajan.kulkarni` | `coo` | `acme-pharma` | `demo-rajan-2026` |
+| `anil.deshpande` | `planner` | `acme-pharma` | `demo-anil-2026` |
+| `svc.admin` | `admin` | `acme-pharma` | `demo-admin-2026` |
+| `user.auditor` | `auditor` | `acme-pharma` | `demo-auditor-2026` |
+| `user.viewer` | `viewer` | `acme-pharma` | `demo-viewer-2026` |
+| `meera.novartis` | `supply_planning_head` | `helix-biologics` | `demo-helix-2026` |
+
+Regenerate with `python scripts/make_identity.py --demo`, or add a real account
+with `--account "id:password:role:tenant:Full Name:Title"`.
 
 ---
 
@@ -19,9 +73,12 @@ concludes "no issues" is a threat model nobody read.
 
 | # | Threat | Status | Control |
 |---|---|---|---|
-| S1 | An actor claims an approver identity by passing another `actor_id` | **Accepted for MVP** | There is no authentication. `resolve_actor()` (`backend/governance/approval.py:204`) maps an id to a role and is the single identity seam. Production requires OIDC + a directory lookup; the change is confined to that one function. |
+| S1 | An actor claims an approver identity by passing another `actor_id` | **Mitigated when auth is on; accepted in the default demo** | With `SANJEEVANI_AUTH_ENABLED=true` the approver comes from a verified token and a disagreeing body `actor_id` is `403 ACTOR_MISMATCH` (`test_a20d_role_claim_is_taken_from_the_verified_token_not_the_body`, `test_a19c_unauthenticated_approval_is_refused`). With auth off — the default — `resolve_actor()` is still the identity seam and the bypass is still open by design. `/api/health` states which mode is active. |
+| S1b | Forge a token | **Mitigated** | Wrong secret, `alg: none`, expired, wrong audience and missing `exp` are all refused with a 401. `test_a20_*`, `test_token_*` in `tests/unit/test_security.py`. |
+| S1c | Use a valid token after the account is disabled | **Mitigated** | The identity store is re-read per request, so revocation takes effect immediately rather than at token expiry. |
+| S1d | Reach a route that a guard was forgotten on | **Mitigated by pattern** | Guards are `Depends(...)` in the route signature, not statements inside a handler, and `test_a19_unauthenticated_reads_are_refused` walks every read route. |
 | S2 | An actor invents an id with no role and approves | **Mitigated** | Unknown ids resolve to `role: None`, and `role_satisfies(None, "coo")` is `False`. Asserted by `test_a04_unknown_actor_cannot_approve`. |
-| S3 | A senior role implies a narrower one ("the COO can approve anything") | **Mitigated by design** | Role matching is an **exact equality** check (`backend/governance/approval.py:218`). A more senior role does *not* satisfy a narrower requirement, so the model refuses more often than a seniority guess would — the safe direction. `test_role_matching_is_exact_not_seniority_based`. |
+| S3 | A senior role implies a narrower one ("the COO can approve anything") | **Mitigated by design** | Role matching is an **exact equality** check (`backend/governance/approval.py:218`). A more senior role does *not* satisfy a narrower requirement, so the model refuses more often than a seniority guess would — the safe direction. `test_role_matching_is_exact_not_seniority_based`, and `test_role_model_agrees_with_the_governance_state_machine` asserts the token layer implements the same rule. |
 
 ## T — Tampering
 
@@ -56,12 +113,13 @@ concludes "no issues" is a threat model nobody read.
 
 | # | Threat | Status | Control |
 |---|---|---|---|
-| D1 | Flood `/api/demo/run` | **Deferred** | No rate limiting. The API is bound to `127.0.0.1` only, which is the actual mitigation in this build. Production needs rate limiting and auth. |
+| D1 | Flood `/api/demo/run` or the approve endpoint | **Mitigated** | A per-process token-bucket limiter, split into a read scope and a state-changing scope, keyed by client address, with `429` and `Retry-After` (`test_a22b_a_flood_of_approval_attempts_is_throttled`). Exempt: `/api/health` and `/metrics`. **Per-process only** — a shared limiter needs a store this build deliberately does not have. |
 | D2 | Huge payload to the Ariba mock | **Mitigated** | The documented 500-suppliers-per-call limit is enforced (`test_ariba_mock_enforces_the_documented_batch_limit`). |
 | D3 | Malformed plan crashes the policy engine | **Mitigated** | Every evaluator is wrapped; an exception becomes an `ERROR` outcome which **blocks** (`test_policy_engine_fails_closed_on_evaluator_exception`). A missing plan stops the loop with a legible refusal rather than a crash (`test_a10b_missing_recovery_plan_stops_the_loop_legibly`). |
-| D4 | Huge or absurd numeric values | **Mitigated** | Contracts bound every ratio to `[0,1]` and every cost to `>= 0`; `POL-PARAM-001` bounds `recovery_time_hours` to 720. `test_a10_physically_impossible_plan_fails_policy` covers a plan that is contract-valid but physically absurd. `test_a15_extra_fields_are_rejected_by_the_contract` covers schema abuse. |
-| D5 | Ledger grows unbounded and freezes the UI | **Deferred** | A clean hero run writes **41** records, which renders and scrolls fine. The `scripts/health.py` path writes 43 because it also attempts an execution *before* approval and records the refusal — a useful illustration of R3. A long-lived deployment needs pagination or windowing. |
-| D6 | Unbounded ledger file / disk exhaustion | **Accepted for MVP** | Records are on the order of a kilobyte and a clean run writes 41. Production requires rotation with the chain preserved. |
+| D4 | Huge or absurd numeric values | **Mitigated** | Contracts bound every ratio to `[0,1]` and every cost to `>= 0`; `POL-PARAM-001` bounds `recovery_time_hours` to 720. `test_a10_physically_impossible_plan_fails_policy` covers a plan that is contract-valid but physically absurd. `test_a15_extra_fields_are_rejected_by_the_contract` covers schema abuse. `actor_id` is length- and character-bounded. |
+| D4b | Oversized request body buffered before validation | **Mitigated** | `BodySizeLimitMiddleware` rejects on `Content-Length` and counts bytes as a backstop, returning `413` (`test_a22_oversized_body_is_refused_before_it_is_parsed`). Default cap: 64 KiB. |
+| D5 | Ledger grows unbounded and freezes the UI | **Mitigated** | `GET /api/audit` is paginated (`limit`/`offset`/`stage`), capped by `audit.page_size_max`, with the true `total` still reported. `GET /api/audit/index` answers indexed filters when the SQLite mirror is enabled. `stage_coverage()` and `timeline()` are memoised, and `verify_chain()` is **not** — the primitive always recomputes, while the polling endpoint uses `verify_chain_memoised()`. |
+| D6 | Unbounded ledger file / disk exhaustion | **Deferred** | Records are on the order of a kilobyte and a clean run writes 41. Durability is now explicit (`none`/`flush`/`fsync`), and failed appends are **counted and surfaced** on `/api/health` rather than swallowed. Production still requires rotation with the chain preserved. |
 
 ## E — Elevation of privilege
 
@@ -82,7 +140,9 @@ concludes "no issues" is a threat model nobody read.
 | E11 | Act on a plan other than the active one (id confusion) | **Mitigated** | `_assert_active_plan` rejects an unknown or inactive `plan_id` with `UNKNOWN_PLAN`. `test_a16_act_on_a_non_active_plan_is_refused`, `test_a16b_act_with_no_plan_loaded_is_refused`. |
 | E12 | Get an unimplemented policy rule to count as satisfied | **Mitigated** | A rule with no evaluator produces `ERROR`, which blocks. `test_a13_unimplemented_rule_blocks_rather_than_passes`, `test_unregistered_rule_fails_closed`. |
 | E13 | Prompt-inject instructions through a signal feed | **Mitigated** | Claims are structured data, not parsed text. `test_a14_free_text_never_parameterizes_a_claim` and `test_sensing_never_parses_free_text_into_parameters` feed hostile text and assert the claim payload is unchanged. |
-| E14 | Present a fake optimized plan as M2's work | **Mitigated** | The provider is a fixture and says so everywhere. `test_a18_optimizer_mode_is_explicitly_not_implemented`, `test_a18b_unavailable_provider_fails_closed`. |
+| E14 | Present a fake optimized plan as M2's work | **Mitigated** | `plan.source` records which provider produced it (`fixture` or `optimizer`), `GET /api/mock-boundaries` → `m2_status` states which is live, and the red-team suite covers both: `test_a18_optimizer_mode_produces_a_governed_plan` and `test_a18b_unavailable_provider_fails_closed`. |
+| E15 | A better plan gets a shorter path to execution | **Mitigated** | The optimizer's plan reaches `APPROVAL_REQUIRED` and is refused execution with `409` exactly as the fixture's is. Asserted in `test_a18_optimizer_mode_produces_a_governed_plan` and again inside the container in CI (`Optimizer mode still stops at the human gate`). |
+| E16 | A policy failure on the optimizer's plan is ignored | **Mitigated** | The optimizer must satisfy the same ceilings M3 enforces, so it cannot propose a plan governance would block; `test_recommended_plan_passes_the_m3_rulebook` asserts that, and the solver records its own `constraints.violations`. |
 
 ---
 

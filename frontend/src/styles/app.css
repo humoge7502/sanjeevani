@@ -1567,3 +1567,70 @@ pre.json {
     grid-template-columns: 84px minmax(0, 1fr) 84px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Render-error containment (components/ErrorBoundary.tsx)
+ *
+ * Shown when a render throws. It has one job: keep the operator informed and
+ * give them a way back, instead of React unmounting the tree into a blank page.
+ * Colours come from tokens so the crash surface is consistent with the rest of
+ * the design system rather than a bespoke screen.
+ * ------------------------------------------------------------------------- */
+
+.crash {
+  max-width: 68ch;
+  margin: var(--sp-12) auto;
+  padding: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e3);
+  color: var(--text);
+}
+
+.crash__title {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+
+.crash__lede {
+  margin: 0 0 var(--sp-6);
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--text-secondary);
+}
+
+.crash__detail {
+  margin: 0 0 var(--sp-6);
+  padding: var(--sp-4);
+  max-height: 16rem;
+  overflow: auto;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.crash__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.crash__link {
+  font-size: var(--fs-sm);
+  color: var(--accent);
+}
+
+.crash__link:hover {
+  color: var(--accent-hover);
+}

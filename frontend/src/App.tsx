@@ -270,7 +270,10 @@ export default function App(): JSX.Element {
                 {state.offline ? "offline mode" : "online"}
               </Badge>
               <Provenance kind="mocked" text="SAP mocks" />
-              <Provenance kind="fixture" text="M2 fixture" />
+              <Provenance
+                kind={state.plan_provider.source === "optimizer" ? "real" : "fixture"}
+                text={state.plan_provider.source === "optimizer" ? "M2 optimizer" : "M2 fixture"}
+              />
             </>
           )}
           <button type="button" className="btn" onClick={onReset} disabled={busy !== null}>
@@ -313,10 +316,10 @@ export default function App(): JSX.Element {
                   impact panel can never disagree about which future is shown. */}
               {state && <HeroKpiRow state={state} impact={selectedImpact} />}
               <Note tone="note--info" glyph="ℹ">
-                <strong>SIMULATE and OPTIMIZE are owned by Member 2 and are not implemented in this
-                build.</strong> They are shown as pending, and the RecoveryPlan below is supplied by a
-                labelled deterministic fixture rather than by an optimizer. Everything else on this
-                page is running.
+                <strong>SIMULATE and OPTIMIZE are implemented and opt-in.</strong> The digital
+                twin, the multi-objective recovery optimizer and its discrete-event cross-check
+                run when SANJEEVANI_PLAN_PROVIDER=optimizer is set; the labelled fixture below
+                stays the default so the offline demo remains byte-reproducible.
               </Note>
             </div>
           </Section>

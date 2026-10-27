@@ -1,0 +1,223 @@
+# SANJEEVANI M2 recovery-option catalogue.
+#
+# WHAT THIS FILE IS. The *decision space* the optimizer searches. It is
+# configuration, exactly like config/policies.yaml, and it is labelled as such in
+# every trace it produces.
+#
+# WHAT THIS FILE IS NOT. It is not the answer. The catalogue says "an air uplift
+# costs this much per pallet and removes the consignment from the disrupted
+# corridor". *Which* consignments get which action, and what that implies for
+# service level, temperature risk and expected loss, is COMPUTED by
+# backend/m2/digital_twin.py over the seeded network and the seeded device
+# traces. Nothing here is a plan.
+#
+# Coefficient semantics (all applied by the digital twin):
+#
+#   corridor_exposure_factor  fraction of the remaining disrupted-corridor
+#                             exposure the consignment still carries AFTER the
+#                             action (0.0 = off the corridor entirely).
+#   outage_factor             fraction of the closure duration the consignment
+#                             still suffers (0.0 = fully insulated).
+#   delay_delta_days          additional transit time the action itself imposes
+#                             (negative = faster than the disrupted baseline).
+#   cost.fixed_usd            one-off charge for choosing the action.
+#   cost.per_pallet_usd       charge per consignment pallet.
+#   cost.per_unit_usd         charge per shipped unit (used by re-sourcing).
+#   temperature.multiplier    scales the consignment's residual temperature risk.
+#   temperature.floor         minimum residual temperature risk the action can
+#                             achieve (infrastructure reality: you cannot get
+#                             below what your cold chain can deliver).
+#   condemn_recovery_fraction fraction of the ALREADY-CONDEMNED cargo the action
+#                             rescues (quarantine + QA disposition, salvage,
+#                             alternate-market release).
+#   consumes_hub_inventory    true when the action draws on a *shared*, finite
+#                             resource: downstream hub stock. Such an action is
+#                             capacity-limited twice over -- a consignment may only
+#                             take it from a hub holding at least its own quantity,
+#                             and consignments contending for one hub may not
+#                             collectively exceed it. See
+#                             data/inventory/hub_inventory.yaml and
+#                             backend/m2/inventory.py.
+#
+# Every coefficient is a knob a domain expert can audit and change. The numbers
+# are the prototype's own engineering estimates, not vendor quotes.
+
+meta:
+  catalogue_version: "1.0.0"
+  provenance: configured_catalogue
+  owner: M2
+  note: >
+    The option catalogue is configured; the outcomes of choosing it are
+    computed. See docs/m2-optimizer.md.
+
+actions:
+  - id: WAIT
+    label: Wait for corridor reopening
+    mode: HOLD
+    description: >
+      Take no action. The consignment rides out the closure on its existing lane.
+    corridor_exposure_factor: 1.0
+    outage_factor: 1.0
+    delay_delta_days: 0.0
+    cost:
+      fixed_usd: 0.0
+      per_pallet_usd: 0.0
+      per_unit_usd: 0.0
+    temperature:
+      multiplier: 1.0
+      floor: 0.0
+    condemn_recovery_fraction: 0.0
+    recovery_hours: 336.0
+    resilience_delta: -0.30
+    requires_alternate_source: false
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+  - id: REROUTE_CAPE
+    label: Ocean re-route around the Cape
+    mode: OCEAN_REEFER
+    description: >
+      Keep the consignment on ocean but take the Cape of Good Hope re-route
+      instead of the chokepoint. Insulated from the closure, but slower.
+    corridor_exposure_factor: 0.35
+    outage_factor: 0.75
+    delay_delta_days: 3.0
+    cost:
+      fixed_usd: 2500.0
+      per_pallet_usd: 450.0
+      per_unit_usd: 0.0
+    temperature:
+      multiplier: 0.85
+      floor: 0.08
+    condemn_recovery_fraction: 0.10
+    recovery_hours: 168.0
+    resilience_delta: 0.10
+    requires_alternate_source: false
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+  - id: REROUTE_AIR_UPLIFT
+    label: Controlled-hub transfer plus air uplift
+    mode: AIR
+    description: >
+      Move the consignment into controlled cold storage at the nearest hub and
+      uplift the balance by air on the unaffected corridor. Leaves the disrupted
+      corridor entirely at a high per-pallet cost.
+    corridor_exposure_factor: 0.0
+    outage_factor: 0.15
+    delay_delta_days: 0.0
+    cost:
+      fixed_usd: 6000.0
+      per_pallet_usd: 3200.0
+      per_unit_usd: 0.0
+    temperature:
+      multiplier: 0.25
+      floor: 0.05
+    condemn_recovery_fraction: 0.60
+    recovery_hours: 18.0
+    resilience_delta: 0.35
+    requires_alternate_source: false
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+  - id: QUARANTINE_QA
+    label: Quarantine and QA disposition
+    mode: HOLD_CONTROLLED
+    description: >
+      Quarantine the consignment into controlled storage and run a QA
+      disposition (release to an alternate market, re-test, or condemn). It does
+      not fix the supply gap; it rescues recoverable value from cargo that would
+      otherwise be written off.
+    corridor_exposure_factor: 1.0
+    outage_factor: 1.0
+    delay_delta_days: 0.0
+    cost:
+      fixed_usd: 2500.0
+      per_pallet_usd: 1200.0
+      per_unit_usd: 0.0
+    temperature:
+      multiplier: 0.15
+      floor: 0.05
+    condemn_recovery_fraction: 0.90
+    recovery_hours: 48.0
+    resilience_delta: 0.05
+    requires_alternate_source: false
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+  - id: EMERGENCY_SOURCE
+    label: Emergency re-source from an alternate supplier
+    mode: SOURCE
+    description: >
+      Onboard an alternate qualified source at a unit-cost premium to close the
+      supply gap, and quarantine the affected consignment pending disposition.
+    corridor_exposure_factor: 0.20
+    outage_factor: 0.20
+    delay_delta_days: 0.0
+    cost:
+      fixed_usd: 4000.0
+      per_pallet_usd: 200.0
+      per_unit_usd: 12.0
+    temperature:
+      multiplier: 0.30
+      floor: 0.05
+    condemn_recovery_fraction: 0.50
+    recovery_hours: 30.0
+    resilience_delta: 0.25
+    requires_alternate_source: true
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+  - id: EXPEDITE_FROM_HUB
+    label: Expedite from downstream hub inventory
+    mode: ROAD
+    description: >
+      Draw down downstream hub inventory and expedite it to the consuming market
+      to cover the gap, leaving the in-flight consignment in place.
+    corridor_exposure_factor: 0.50
+    outage_factor: 0.50
+    delay_delta_days: 0.0
+    cost:
+      fixed_usd: 800.0
+      per_pallet_usd: 900.0
+      per_unit_usd: 0.0
+    temperature:
+      multiplier: 0.60
+      floor: 0.08
+    condemn_recovery_fraction: 0.20
+    recovery_hours: 72.0
+    resilience_delta: 0.05
+    requires_alternate_source: false
+    #: Draws on downstream hub stock, which is finite and shared between
+    #: consignments. Without this flag the action would be free, and the
+    #: optimizer's cheapest answer would be to expedite everything.
+    consumes_hub_inventory: true
+    applies_to_temp_classes: ["2_8C", "ambient_15_25"]
+
+# Which strategy name a chosen assignment reports. The classifier picks the
+# highest-value action present in the assignment, in this precedence order, so a
+# mixed plan is named for the move that dominates its value. These names are the
+# M2 -> M3 vocabulary; POL-TEMP-002 lists which of them are accepted corrective
+# actions for an excursed consignment.
+strategy_names:
+  REROUTE_AIR_UPLIFT: REROUTE_MUMBAI_AIR
+  EMERGENCY_SOURCE: EMERGENCY_SOURCE
+  QUARANTINE_QA: QUARANTINE_AND_RECALL
+  EXPEDITE_FROM_HUB: PRECOOL_AND_HOLD
+  REROUTE_CAPE: REROUTE_CAPE
+  WAIT: WAIT
+
+# Default objective weighting. The optimizer minimises
+#     total_recovery_cost + value_of_risk_weight * expected_unrecovered_value
+# Both terms are USD, so the weight is a plain economic exchange rate between
+# "money we spend now" and "value we expect to lose". 1.0 means "one dollar of
+# expected loss is worth one dollar of recovery spend".
+objective:
+  value_of_risk_weight: 1.0
+  # Weights scanned to trace the Pareto frontier. Each entry produces one
+  # epsilon-constrained solution; the frontier is the non-dominated subset.
+  pareto_weight_grid: [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0]
+
+# Hard limits the optimizer must satisfy regardless of the objective. These are
+# the same physical ceilings the M3 rulebook enforces; the optimizer is not
+# allowed to propose a plan it knows governance will block.
+constraints:
+  max_budget_usd: 250000.0
+  min_service_level: 0.90
+  max_temperature_risk: 0.35
+  max_recovery_hours: 720.0

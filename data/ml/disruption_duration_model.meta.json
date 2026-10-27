@@ -1,0 +1,64 @@
+{
+  "model_version": "1.0.0",
+  "trained_at": "2026-09-30T06:00:00Z",
+  "algorithm": "sklearn GradientBoostingRegressor (squared_error), exported to JSON",
+  "hyperparameters": {
+    "n_estimators": 300,
+    "learning_rate": 0.05,
+    "max_depth": 3,
+    "subsample": 0.9,
+    "random_state": 20260930,
+    "init": "zero"
+  },
+  "features": [
+    "capacity_loss_pct",
+    "corridor_exposed",
+    "congestion_index",
+    "node_risk_score",
+    "chokepoint",
+    "prior_incidents_90d",
+    "carrier_diversion_pct",
+    "vessel_wait_days",
+    "season_month",
+    "lane_transit_days",
+    "alt_route_available",
+    "is_tariff_shock"
+  ],
+  "target": "duration_days",
+  "target_unit": "days",
+  "rows": {
+    "total": 6000,
+    "train": 3600,
+    "validation": 1200,
+    "test": 1200
+  },
+  "metrics": {
+    "test_mae_days": 3.6603,
+    "test_rmse_days": 5.9811,
+    "test_r2": 0.9049,
+    "baseline_mae_days": 14.1772,
+    "validation_mae_days": 3.7665
+  },
+  "dataset": {
+    "kind": "synthetic, generated from cited evidence ranges",
+    "path": "disruption_duration_training.csv",
+    "sha256": "d1f727533f9958eda41f99dd732b77db1c1282409c738f3385aff6853567319b",
+    "rows": 6000,
+    "generator_seed": 20260930,
+    "split": "shuffled 60/20/20. A real historical dataset must use a TIME-based split; an i.i.d. shuffle over generated rows does not leak, but it also does not prove temporal generalisation."
+  },
+  "evidence_anchors": {
+    "red_sea_cape_transit_days": "SJEV-CASE-001 - Red Sea crisis: Cape of Good Hope re-routing added 10-14 days",
+    "red_sea_transit_drop_pct": "SJEV-CASE-002 - Red Sea transits fell by up to 90%",
+    "port_congestion_high": "SJEV-WEB-PRT-001 - Port congestion at a four-year high",
+    "us_port_strike_backlog_days": "SJEV-CASE-021 - US East & Gulf Coast port strike backlog (Xeneta)",
+    "panama_drought_days": "SJEV-CASE-020 - Panama Canal drought",
+    "tariff_volatility_months": "SJEV-CASE-015 - Tariff volatility duration verdict (Columbus Consulting)",
+    "pure_reroute_cost_40ft": "SJEV-CASE-004 - ITF-OECD pure re-routing cost per 40ft container"
+  },
+  "environment": {
+    "python": "3.13.6",
+    "platform": "Windows-11-10.0.26300-SP0"
+  },
+  "disclosure": "ADVISORY ONLY. This model supplies a duration PRIOR for scenario generation. It never produces a number that reaches a shared contract unless forecasting.enabled is set in config/settings.yaml, and even then A2 clamps it against configured bounds. The training rows are synthetic; the pipeline is real. No LLM is involved."
+}

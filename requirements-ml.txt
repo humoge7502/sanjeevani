@@ -1,0 +1,18 @@
+# SANJEEVANI model-training dependencies.
+#
+#   python -m pip install -r requirements-dev.txt -r requirements-ml.txt
+#   python scripts/train_forecasting_model.py
+#
+# WHY THIS IS A SEPARATE FILE. Nothing here is needed to RUN SANJEEVANI. The
+# training script is the only importer of the numeric stack, and it exports the
+# model to a portable JSON tree ensemble that `backend/forecasting/duration.py`
+# evaluates with pure Python. The runtime image therefore carries no numpy, no
+# scipy, no pandas, no scikit-learn and no joblib -- which keeps it small and
+# keeps a vulnerability in any of them off the request path. A test asserts that
+# in a clean interpreter (`test_serving_requires_no_numeric_stack`).
+#
+# Pinned to the versions this repository was verified against.
+
+numpy==2.3.4
+pandas==2.3.3
+scikit-learn==1.7.2

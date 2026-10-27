@@ -126,6 +126,7 @@ function makeState(overrides: Partial<DemoState> = {}): DemoState {
     scenario_clock: "2026-09-30T06:00:00Z",
     offline: true,
     m1: null,
+    m2: null,
     plan: null,
     ranked_plans: [],
     plan_provider: {
@@ -158,8 +159,14 @@ function makeState(overrides: Partial<DemoState> = {}): DemoState {
       simulated: [],
       mocked: [],
       not_implemented: [],
+      m2_status: { provider_mode: "fixture", statement: "" },
+      feeds_status: { enabled: false, mode: "scripted" },
+      narrative: { enabled: false, narrator: "template" },
+      forecasting: { available: false, enabled: false },
       ai_usage: "",
     },
+    feeds: { enabled: false, mode: "scripted" },
+    narrative: { enabled: false, narrator: "template" },
     approvers: [],
     markets: [],
     ...overrides,
@@ -174,16 +181,26 @@ describe("deriveLoop", () => {
     }
   });
 
-  it("never marks the M2 stages as done, because they are not implemented", () => {
-    const loop = deriveLoop(
+  it("marks the M2 stages done only when the optimizer actually ran", () => {
+    const fixture = deriveLoop(
       makeState({
         m1: { primary_impact: {} } as never,
-        plan: { plan_id: "PLAN-001" } as never,
+        plan: { plan_id: "PLAN-001", source: "fixture" } as never,
       }),
     );
-    expect(loop["SIMULATE"]?.state).toBe("pending");
-    expect(loop["OPTIMIZE"]?.state).toBe("pending");
-    expect(loop["SIMULATE"]?.note).toContain("M2 fixture");
+    expect(fixture["SIMULATE"]?.state).toBe("pending");
+    expect(fixture["OPTIMIZE"]?.state).toBe("pending");
+    expect(fixture["SIMULATE"]?.note).toContain("M2 fixture");
+
+    const optimizer = deriveLoop(
+      makeState({
+        m1: { primary_impact: {} } as never,
+        plan: { plan_id: "PLAN-OPT-10D", source: "optimizer" } as never,
+      }),
+    );
+    expect(optimizer["SIMULATE"]?.state).toBe("done");
+    expect(optimizer["OPTIMIZE"]?.state).toBe("done");
+    expect(optimizer["OPTIMIZE"]?.note).toContain("optimizer");
   });
 
   it("marks APPROVE as awaiting human authority at the gate", () => {

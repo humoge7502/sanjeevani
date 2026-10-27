@@ -231,7 +231,7 @@ def test_mock_boundaries_are_declared(orchestrator):
     assert boundaries["mocked"]
     assert boundaries["simulated"]
     assert boundaries["real"]
-    assert any("M2 digital twin" in item for item in boundaries["not_implemented"])
+    assert any("GNN cascade" in item for item in boundaries["not_implemented"])
     assert "No language model" in boundaries["ai_usage"]
 
 
@@ -300,11 +300,12 @@ def test_health_endpoint_reports_deterministic_configuration():
 @pytest.mark.integration
 def test_all_three_horizons_are_available_from_the_api(orchestrator):
     from backend.api.app import impact
+    from backend.security import demo_principal
 
     orchestrator.reset()
     orchestrator.run()
     for horizon in (3, 10, 30):
-        payload = impact(horizon_days=horizon)
+        payload = impact(demo_principal(), horizon_days=horizon)
         assert payload["impact"]["horizon_days"] == horizon
         assert payload["impact"]["revenue_at_risk"] >= 0
 
@@ -312,8 +313,9 @@ def test_all_three_horizons_are_available_from_the_api(orchestrator):
 @pytest.mark.integration
 def test_contracts_endpoint_exposes_all_six_contracts():
     from backend.api.app import contracts
+    from backend.security import demo_principal
 
-    payload = contracts()
+    payload = contracts(demo_principal())
     assert set(payload["contracts"]) == {
         "Event",
         "Impact",

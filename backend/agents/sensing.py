@@ -100,7 +100,31 @@ def _freshness(age_hours: float, max_age: float) -> str:
 
 
 def load_feed(path: str | None = None) -> list[RawSignal]:
-    """Load the scripted signal feed. Files only -- no network, ever."""
+    """Load the signal feed. Files by default -- no network on the demo path.
+
+    Two sources, one shape:
+
+    * **scripted** (default) -- ``data/events/hero_feeds.yaml``. This is the
+      documented demo path and its numbers are frozen.
+    * **adapters** -- GDELT / Open-Meteo / Freightos, normalised into exactly the
+      same fields. Enabled with ``settings.sensing.feeds.enabled`` /
+      ``SANJEEVANI_FEEDS_ENABLED``. A replay reads a snapshot from disk, so
+      nothing on this path needs the network either unless live fetching is
+      explicitly requested.
+
+    Passing ``path`` always selects the scripted loader, which is what the test
+    suite and ``scripts/reset.py`` rely on.
+    """
+    if path is None and _feeds_enabled():
+        return _load_adapter_feed()
+    return _load_scripted_feed(path)
+
+
+def _feeds_enabled() -> bool:
+    return bool(settings().get("sensing", {}).get("feeds", {}).get("enabled"))
+
+
+def _load_scripted_feed(path: str | None = None) -> list[RawSignal]:
     import yaml
 
     rel = path or "events/hero_feeds.yaml"
@@ -128,7 +152,69 @@ def load_feed(path: str | None = None) -> list[RawSignal]:
                 expectation=s.get("expect"),
             )
         )
+    _FEED_PROVENANCE.clear()
+    _FEED_PROVENANCE.update(
+        {
+            "enabled": False,
+            "mode": "scripted",
+            "source": _display_path(feed_path),
+            "signals": len(signals),
+        }
+    )
     return signals
+
+
+def _display_path(path: Path) -> str:
+    """Repo-relative when possible, absolute otherwise. Never raises."""
+    try:
+        return str(path.relative_to(DATA_DIR.parent))
+    except ValueError:
+        return str(path)
+
+
+def _load_adapter_feed() -> list[RawSignal]:
+    """Normalise adapter output into ``RawSignal``s.
+
+    The retrieval timestamp is the *scenario* clock, not the wall clock: the
+    system's notion of "now" is the scenario's, and mixing real time into a frozen
+    clock would make every replayed signal stale by construction. It is recorded
+    inside the snapshot, so a replay reproduces it exactly.
+    """
+    from backend.agents import feeds as feeds_pkg
+    from backend.config import feeds_config
+
+    cfg = settings()
+    feeds_cfg = cfg["sensing"]["feeds"]
+    snapshot_dir = Path(str(feeds_cfg.get("snapshot_dir") or "events/snapshots"))
+    if not snapshot_dir.is_absolute():
+        snapshot_dir = DATA_DIR / snapshot_dir
+
+    load = feeds_pkg.load_signals(
+        config=feeds_config(),
+        snapshot_dir=snapshot_dir,
+        retrieved_utc=isoformat(scenario_clock()),
+        live=bool(feeds_cfg.get("live")),
+        offline=bool(cfg.get("runtime", {}).get("offline", True)),
+    )
+    _FEED_PROVENANCE.clear()
+    _FEED_PROVENANCE.update(load.provenance())
+    return [RawSignal(**record.as_signal_kwargs()) for record in load.records]
+
+
+def feed_provenance() -> dict[str, Any]:
+    """What the last feed load actually did -- for ``/api/state`` and health."""
+    return dict(_FEED_PROVENANCE)
+
+
+def reset_feed_state() -> None:
+    """Drop the recorded provenance. Used by the demo reset endpoint."""
+    _FEED_PROVENANCE.clear()
+
+
+#: The last load pass's provenance. Populated by both loaders so a caller can
+#: always ask "which sources produced these signals, and which contributed
+#: nothing?" without threading a return value through every call site.
+_FEED_PROVENANCE: dict[str, Any] = {}
 
 
 def classify(signal: RawSignal, network: Network, now: datetime) -> CandidateEvent:
@@ -208,6 +294,11 @@ def _infer_severity(event_type: str, claim: dict[str, Any]) -> str:
     if event_type == "PORT_CLOSURE":
         capacity = float(claim.get("capacity_factor", 1.0))
         return "HIGH" if capacity <= 0.25 else "MEDIUM"
+    if event_type == "FREIGHT_RATE_SPIKE":
+        # The band is a threshold on a number the payload carried. A rate that
+        # has moved 40% is not a cost story any more, it is a sourcing story.
+        move = abs(float(claim.get("rate_change_pct", 0.0)))
+        return "HIGH" if move >= 40.0 else "MEDIUM"
     if event_type in {"TARIFF_CHANGE", "CAPACITY_SHORTAGE"}:
         return "MEDIUM"
     return "LOW"
@@ -224,6 +315,7 @@ def sense(feed_path: str | None = None, network: Network | None = None) -> dict[
         "agent": "A1_SENSING",
         "sensed_at": isoformat(now),
         "signals_seen": len(signals),
+        "feed": feed_provenance(),
         "escalated": [c.as_dict() for c in candidates if c.status == "ESCALATED"],
         "watchlist": [c.as_dict() for c in candidates if c.status == "WATCHLIST"],
         "candidates": candidates,

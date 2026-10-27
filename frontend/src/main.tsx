@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -12,6 +13,13 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    {/*
+     * The boundary is OUTSIDE App so a render error inside any panel still leaves
+     * a legible page. Without it, React unmounts the whole tree and the operator
+     * gets a blank screen with the cause in a console they are not looking at.
+     */}
+    <ErrorBoundary label="The command center">
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -58,8 +58,12 @@ export default defineConfig({
 
   webServer: [
     {
+      // `python`, not `python3`: setup-python (CI) and a normal Windows install
+      // both put `python` on PATH, while on Windows `python3` resolves to the
+      // Microsoft Store alias, which prints "Python was not found" and exits --
+      // the API server never starts and the suite times out waiting for health.
       command:
-        "python3 -m uvicorn backend.api.app:app --host 127.0.0.1 " +
+        "python -m uvicorn backend.api.app:app --host 127.0.0.1 " +
         `--port ${API_PORT} --log-level warning`,
       cwd: "..",
       url: `${API_URL}/api/health`,

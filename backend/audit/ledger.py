@@ -100,15 +100,37 @@ class DecisionLedger:
         self._records: list[LedgerRecord] = []
         self._lock = threading.RLock()
         self._path = path
-        self.chain_enabled = bool(settings()["audit"]["hash_chain"])
         # Rehydration bookkeeping. `_loaded` means "the in-memory list is the
         # authoritative baseline for this process" -- set by the first lazy read
         # or by an explicit reset(), whichever happens first.
         self._loaded = False
         self.rehydrated = False
         self.skipped_lines = 0
+        # Durability is observable, not silent. A read-only filesystem used to lose
+        # every record with no signal beyond "the directory is not writable".
+        self.write_failures = 0
+        self.last_write_error: str | None = None
+        # Read-path memos. `verify_chain()` recomputes a SHA-256 per record and
+        # `timeline()` rebuilds a dict per record, and `/api/state` asks for both
+        # on every keystroke the UI makes. Each memo is invalidated by
+        # `_invalidate_memos()`, which `append()` and `reset()` both call, so a
+        # stale answer is impossible no matter which read comes first.
+        self._chain_memo: dict[str, Any] | None = None
+        self._coverage_memo: dict[str, Any] | None = None
+        self._timeline_memo: list[dict[str, Any]] | None = None
 
     # ------------------------------------------------------------------ paths
+    @property
+    def chain_enabled(self) -> bool:
+        """Whether the hash chain is on.
+
+        A property, not an attribute set at import time. It used to be read once
+        in ``__init__``, which meant toggling ``audit.hash_chain`` and calling
+        ``reload_config()`` had no effect -- contradicting the project's own claim
+        that every threshold is a live config key.
+        """
+        return bool(settings()["audit"]["hash_chain"])
+
     @property
     def path(self):
         if self._path is not None:
@@ -185,6 +207,7 @@ class DecisionLedger:
             self._loaded = True
             self.rehydrated = False
             self.skipped_lines = 0
+            self._invalidate_memos()
             if write_file:
                 try:
                     ensure_runtime_dir()
@@ -193,6 +216,11 @@ class DecisionLedger:
                     # A read-only runtime directory must not break the demo; the
                     # in-memory ledger remains authoritative.
                     pass
+
+    def _invalidate_memos(self) -> None:
+        self._chain_memo = None
+        self._coverage_memo = None
+        self._timeline_memo = None
 
     # ------------------------------------------------------------------ append
     def append(
@@ -219,16 +247,53 @@ class DecisionLedger:
             record.prev_hash = self._records[-1].hash if self._records else "GENESIS"
             record.hash = record.compute_hash() if self.chain_enabled else ""
             self._records.append(record)
+            self._invalidate_memos()
             self._write(record)
+            # Mirror AFTER the file write, so the authoritative copy is never
+            # behind the copy. A mirror failure is counted, not raised.
+            if self._mirror_enabled():
+                from backend.persistence import mirror
+
+                mirror.append(record.as_dict())
             return record
 
+    def _mirror_enabled(self) -> bool:
+        return bool(settings().get("persistence", {}).get("sqlite_mirror", False))
+
     def _write(self, record: LedgerRecord) -> None:
+        """Append one record to the JSONL file.
+
+        Durability is configurable (``persistence.ledger_durability``) because the
+        right trade-off differs between a demo and a deployment:
+
+          * ``none``  -- write and return. A power loss can lose the tail.
+          * ``flush`` -- flush the Python buffer to the OS. The default.
+          * ``fsync`` -- flush and fsync. Survives a power loss; costs a syscall
+                         per record, which is the correct price for an audit trail
+                         that has to be provable.
+
+        Failures are counted in ``write_failures`` rather than swallowed in
+        silence: a read-only filesystem used to lose every record invisibly, and
+        ``/api/health`` could only report the *directory* as unwritable.
+        """
         try:
             ensure_runtime_dir()
-            with self.path.open("a", encoding="utf-8") as fh:
-                fh.write(_canonical(record.as_dict()) + "\n")
-        except OSError:
-            pass  # durability is best-effort; never break the request path
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(_canonical(record.as_dict()) + "\n")
+                self._apply_durability(handle)
+        except OSError as exc:
+            self.write_failures += 1
+            self.last_write_error = f"{type(exc).__name__}: {exc}"
+
+    def _apply_durability(self, handle) -> None:
+        mode = str(settings().get("persistence", {}).get("ledger_durability", "flush"))
+        if mode == "none":
+            return
+        handle.flush()
+        if mode == "fsync":
+            import os
+
+            os.fsync(handle.fileno())
 
     # -------------------------------------------------------------------- read
     def __len__(self) -> int:
@@ -244,11 +309,60 @@ class DecisionLedger:
             self._ensure_loaded()
             return [r.as_dict() for r in self._records]
 
-    def timeline(self) -> list[dict[str, Any]]:
-        """Compact chronological view for the audit UI."""
+    def records_page(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+        stage: str | None = None,
+    ) -> dict[str, Any]:
+        """A bounded page of records, newest first.
+
+        WHY THIS EXISTS. ``records()`` returns the entire ledger. The ledger grows
+        monotonically for the life of the deployment, so that endpoint's payload
+        grew with it, and the JSON was serialised while holding the ledger lock --
+        an audit read that could exhaust a worker. This method is the fix: the
+        response is bounded, the expensive work is bounded with it, and the
+        caller is told both the page and the true total so nothing is hidden.
+        """
+        cfg = settings()["audit"]
+        page_default = int(cfg.get("page_size_default", 200))
+        page_max = int(cfg.get("page_size_max", 1000))
+        requested = page_default if limit is None else int(limit)
+        effective = max(1, min(requested, page_max))
+        clamped = requested > page_max
+        start = max(0, int(offset))
+
         with self._lock:
             self._ensure_loaded()
-            return [
+            filtered = [
+                r for r in self._records if stage is None or r.stage == stage
+            ]
+            total = len(filtered)
+            # Newest first: an audit reader almost always wants the latest, and a
+            # stable sort over seq keeps the order deterministic.
+            ordered = sorted(filtered, key=lambda r: r.seq, reverse=True)
+            window = ordered[start : start + effective]
+            return {
+                "records": [r.as_dict() for r in window],
+                "total": total,
+                "returned": len(window),
+                "offset": start,
+                "limit": effective,
+                "limit_clamped_to_max": clamped,
+                "page_size_max": page_max,
+                "order": "seq descending (newest first)",
+                "filter": {"stage": stage},
+                "has_more": start + len(window) < total,
+            }
+
+    def timeline(self) -> list[dict[str, Any]]:
+        """Compact chronological view for the audit UI. Memoised until the ledger changes."""
+        with self._lock:
+            self._ensure_loaded()
+            if self._timeline_memo is not None:
+                return self._timeline_memo
+            self._timeline_memo = [
                 {
                     "seq": r.seq,
                     "stage": r.stage,
@@ -262,16 +376,21 @@ class DecisionLedger:
                 }
                 for r in self._records
             ]
+            return self._timeline_memo
 
     def stage_coverage(self) -> dict[str, Any]:
-        self._ensure_loaded()
-        seen = {r.stage for r in self._records}
-        return {
-            "stages_expected": STAGE_SEQUENCE,
-            "stages_present": [s for s in STAGE_SEQUENCE if s in seen],
-            "stages_missing": [s for s in STAGE_SEQUENCE if s not in seen],
-            "complete": all(s in seen for s in STAGE_SEQUENCE),
-        }
+        with self._lock:
+            self._ensure_loaded()
+            if self._coverage_memo is not None:
+                return self._coverage_memo
+            seen = {r.stage for r in self._records}
+            self._coverage_memo = {
+                "stages_expected": STAGE_SEQUENCE,
+                "stages_present": [s for s in STAGE_SEQUENCE if s in seen],
+                "stages_missing": [s for s in STAGE_SEQUENCE if s not in seen],
+                "complete": all(s in seen for s in STAGE_SEQUENCE),
+            }
+            return self._coverage_memo
 
     def health(self) -> dict[str, Any]:
         """Readiness detail for `/api/health`.
@@ -293,7 +412,7 @@ class DecisionLedger:
         except OSError:
             writable = False
         self._ensure_loaded()
-        return {
+        payload = {
             "records": len(self._records),
             "hash_chain": self.chain_enabled,
             "path": str(self.path),
@@ -302,42 +421,89 @@ class DecisionLedger:
             # restored from a mounted volume after a restart".
             "rehydrated_from_disk": self.rehydrated,
             "skipped_malformed_lines": self.skipped_lines,
+            # A record that failed to persist is a silent audit hole unless it is
+            # reported. The request path swallows the OSError on purpose; this is
+            # how anybody finds out it happened.
+            "write_failures": self.write_failures,
+            "last_write_error": self.last_write_error,
+            "durability": str(
+                settings().get("persistence", {}).get("ledger_durability", "flush")
+            ),
         }
+        try:
+            from backend.persistence import mirror
+
+            payload["mirror"] = mirror.status().as_dict()
+            payload["mirror_consistency"] = mirror.consistency(len(self._records))
+        except Exception as exc:  # noqa: BLE001 - health must never fail on a mirror
+            payload["mirror"] = {"enabled": False, "error": str(exc)}
+        return payload
 
     def verify_chain(self) -> dict[str, Any]:
-        """Recompute the chain. Detects out-of-band edits to the ledger body."""
+        """Recompute the chain, always. Detects edits to the ledger body.
+
+        This is the tamper-evidence *primitive*, so it never returns a cached
+        answer: a verification function that can say "intact" without looking is a
+        weaker thing than the hash chain it is meant to attest, and the whole
+        claim rests on it. The cost is one SHA-256 per record.
+
+        The hot path avoids that cost a different way: ``/api/state`` calls
+        ``verify_chain_memoised()``, which is explicitly named so nobody mistakes
+        it for this method.
+        """
         with self._lock:
             self._ensure_loaded()
-            broken: list[dict[str, Any]] = []
-            prev = "GENESIS"
-            for record in self._records:
-                if record.prev_hash != prev:
-                    broken.append(
-                        {"seq": record.seq, "issue": "prev_hash_mismatch", "expected": prev}
-                    )
-                recomputed = record.compute_hash()
-                if record.hash and recomputed != record.hash:
-                    broken.append(
-                        {
-                            "seq": record.seq,
-                            "issue": "hash_mismatch",
-                            "expected": record.hash,
-                            "recomputed": recomputed,
-                        }
-                    )
-                prev = record.hash or recomputed
-            return {
-                "records": len(self._records),
-                "chain_enabled": self.chain_enabled,
-                "intact": not broken,
-                "head": self._records[-1].hash if self._records else None,
-                "issues": broken,
-                "rehydrated_from_disk": self.rehydrated,
-                "scope": (
-                    "Detects edits to the ledger body. Does NOT protect against an actor "
-                    "with filesystem write access who rewrites and re-hashes the file."
-                ),
-            }
+            return self._verify_chain_uncached()
+
+    def verify_chain_memoised(self) -> dict[str, Any]:
+        """A cached chain verdict, for the polling state endpoint only.
+
+        Safe because the verdict can only change when a record is appended, and
+        every append clears the cache. An in-process mutation of
+        ``_records`` would not invalidate it -- which is exactly why the audit
+        endpoint and the tests use ``verify_chain()`` instead, and why the
+        attacker this protects against (someone with filesystem access) is caught
+        by rehydration rather than by polling.
+        """
+        with self._lock:
+            self._ensure_loaded()
+            if self._chain_memo is not None:
+                return {**self._chain_memo, "memoised": True}
+            verdict = self._verify_chain_uncached()
+            self._chain_memo = verdict
+            return {**verdict, "memoised": False}
+
+    def _verify_chain_uncached(self) -> dict[str, Any]:
+        broken: list[dict[str, Any]] = []
+        prev = "GENESIS"
+        for record in self._records:
+            if record.prev_hash != prev:
+                broken.append(
+                    {"seq": record.seq, "issue": "prev_hash_mismatch", "expected": prev}
+                )
+            recomputed = record.compute_hash()
+            if record.hash and recomputed != record.hash:
+                broken.append(
+                    {
+                        "seq": record.seq,
+                        "issue": "hash_mismatch",
+                        "expected": record.hash,
+                        "recomputed": recomputed,
+                    }
+                )
+            prev = record.hash or recomputed
+        return {
+            "records": len(self._records),
+            "chain_enabled": self.chain_enabled,
+            "intact": not broken,
+            "head": self._records[-1].hash if self._records else None,
+            "issues": broken,
+            "rehydrated_from_disk": self.rehydrated,
+            "scope": (
+                "Detects edits to the ledger body. Does NOT protect against an actor "
+                "with filesystem write access who rewrites and re-hashes the file."
+            ),
+        }
 
 
 ledger = DecisionLedger()

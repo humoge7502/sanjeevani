@@ -1,0 +1,52 @@
+{
+  "articles": [
+    {
+      "url": "https://www.reuters.com/markets/commodities/tanker-strike-suspends-bab-el-mandeb-transits-2026-09-30/",
+      "title": "Tanker strike suspends Bab-el-Mandeb transits as carriers weigh Cape re-route",
+      "seendate": "20260930T051200Z",
+      "domain": "reuters.com",
+      "language": "English",
+      "sourcecountry": "United Kingdom"
+    },
+    {
+      "url": "https://www.lloydslist.com/ll1145678/red-sea-war-risk-premiums-jump",
+      "title": "Red Sea war-risk premiums jump after latest Bab el Mandeb incident",
+      "seendate": "20260930T052500Z",
+      "domain": "lloydslist.com",
+      "language": "English",
+      "sourcecountry": "United Kingdom"
+    },
+    {
+      "url": "https://gcaptain.com/suez-transits-held-pending-security-assessment/",
+      "title": "Suez transits held pending security assessment, authority says",
+      "seendate": "20260930T054000Z",
+      "domain": "gcaptain.com",
+      "language": "English",
+      "sourcecountry": "United States"
+    },
+    {
+      "url": "https://www.joc.com/maritime-news/reefer-capacity-shifts-off-red-sea-services",
+      "title": "Reefer capacity shifts off Red Sea services to longer Cape routings",
+      "seendate": "20260930T054800Z",
+      "domain": "joc.com",
+      "language": "English",
+      "sourcecountry": "United States"
+    },
+    {
+      "url": "https://splash247.com/mumbai-terminal-throughput-forecast-revised/",
+      "title": "Nhava Sheva terminal throughput forecast revised upward for the quarter",
+      "seendate": "20260930T055000Z",
+      "domain": "splash247.com",
+      "language": "English",
+      "sourcecountry": "Singapore"
+    },
+    {
+      "url": "https://port-news-daily.example/india-port-investment-roundup",
+      "title": "India port investment roundup: eight terminals in the pipeline",
+      "seendate": "20260930T055500Z",
+      "domain": "port-news-daily.example",
+      "language": "English",
+      "sourcecountry": "India"
+    }
+  ]
+}

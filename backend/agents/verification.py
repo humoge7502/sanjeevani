@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from backend.agents import narrative as narrative_mod
 from backend.agents import telemetry
 from backend.agents.sensing import CandidateEvent
 from backend.config import (
@@ -95,6 +96,15 @@ class Scenario:
     affected_lanes: list[str]
     narrative: str
     parameters_source: dict[str, Any]
+    #: Who wrote `narrative`. Recorded so a reviewer can tell the frozen template
+    #: from the narrative seam, and see why a remote narrator fell back.
+    narrative_source: dict[str, Any] = field(
+        default_factory=lambda: {
+            "narrator": narrative_mod.SOURCE_FROZEN,
+            "applied": False,
+            "fallback_reason": None,
+        }
+    )
     contributed_by_events: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
@@ -110,6 +120,7 @@ class Scenario:
             "confidence": round(self.confidence, 4),
             "affected_lanes": self.affected_lanes,
             "narrative": self.narrative,
+            "narrative_source": self.narrative_source,
             "parameters_source": self.parameters_source,
             "contributed_by_events": self.contributed_by_events,
         }
@@ -382,6 +393,92 @@ def _clamp(value: float, bounds: list[float]) -> tuple[float, bool]:
     return value, False
 
 
+def _duration_prior(event: VerifiedEvent, network: Network) -> dict[str, Any] | None:
+    """Attach the trained model's duration estimate, as evidence.
+
+    This is the honesty boundary in code. The forecast is *always* computed and
+    recorded so a reviewer can see what the model would have said; it only
+    influences the scenario's duration when ``forecasting.enabled`` is on, and
+    even then only after A2 clamps the blend against the configured bounds. A
+    trained model must never be able to widen a claim past what an operator has
+    authorised.
+
+    Returns None when no model artifact exists. It never fabricates a number.
+    """
+    try:
+        from backend.forecasting import (
+            features_for_event,
+            forecast_enabled,
+            predict_duration,
+        )
+    except Exception:  # noqa: BLE001 - forecasting is optional, never load-bearing
+        return None
+    try:
+        cfg = settings().get("forecasting", {})
+        features = features_for_event(
+            event,
+            network,
+            observed_incidents_90d=0,
+            carrier_diversion_pct=float(cfg.get("carrier_diversion_pct", 35.0)),
+        )
+        forecast = predict_duration(features)
+    except Exception:  # noqa: BLE001 - a missing or broken artifact means "no forecast"
+        return None
+    payload = forecast.as_dict()
+    payload["applied"] = bool(forecast_enabled())
+    payload["blend_weight"] = float(
+        settings().get("forecasting", {}).get("blend_weight", 0.0)
+    )
+    return payload
+
+
+def _scenario_narrative(
+    event: VerifiedEvent,
+    corridor: str,
+    duration_days: float,
+    transit_delay_days: float,
+    capacity_factor: float,
+    horizon_days: int,
+) -> tuple[str, dict[str, Any]]:
+    """The scenario's prose, and who wrote it.
+
+    Two bodies, one output shape. With ``runtime.llm_enabled`` false the frozen
+    one-liner the demo has always shipped is returned unchanged, so the documented
+    output is byte-identical. With it true the narrative seam is consulted -- and
+    the seam can change these words and nothing else, because a scenario's
+    narrative is a display string that no calculation reads.
+    """
+    if not narrative_mod.narration_enabled():
+        return (
+            (
+                f"Corridor disrupted for {duration_days:g} days with "
+                f"{transit_delay_days:g} days of added transit. "
+                f"Evaluated over a {horizon_days}-day planning window."
+            ),
+            {
+                "narrator": narrative_mod.SOURCE_FROZEN,
+                "applied": False,
+                "fallback_reason": None,
+            },
+        )
+
+    context = narrative_mod.NarrativeContext(
+        event_type=event.event_type,
+        target=event.target,
+        severity=event.severity,
+        corridor=corridor,
+        horizon_days=int(horizon_days),
+        duration_days=duration_days,
+        transit_delay_days=transit_delay_days,
+        capacity_factor=capacity_factor,
+        confidence=event.confidence,
+        signals=tuple(event.contributing),
+        provenance_url=str(event.verification.get("provenance", {}).get("url") or ""),
+    )
+    result = narrative_mod.narrate(context)
+    return result.text, result.as_dict()
+
+
 def generate_scenarios(events: list[VerifiedEvent]) -> list[Scenario]:
     """Turn verified events into parameterized horizons with probability weights.
 
@@ -397,14 +494,22 @@ def generate_scenarios(events: list[VerifiedEvent]) -> list[Scenario]:
     import math
 
     clamp_cfg = settings()["scenario"]["clamp"]
+    net = Network.load()
+    fcfg = settings().get("forecasting", {})
 
     scenarios: list[Scenario] = []
     for event in events:
         if event.event_type != "PORT_CLOSURE":
             continue
-        dur, dur_clamped = _clamp(
-            float(event.claim.get("duration_days", 7)), clamp_cfg["duration_days"]
-        )
+        claimed_duration = float(event.claim.get("duration_days", 7))
+        prior = _duration_prior(event, net)
+        blended_duration = claimed_duration
+        if prior is not None and prior.get("applied"):
+            weight = float(fcfg.get("blend_weight", 0.0))
+            blended_duration = (
+                (1.0 - weight) * claimed_duration + weight * prior["duration_days"]
+            )
+        dur, dur_clamped = _clamp(blended_duration, clamp_cfg["duration_days"])
         delay, delay_clamped = _clamp(
             float(event.claim.get("transit_delay_days", 7)),
             clamp_cfg["transit_delay_days"],
@@ -416,12 +521,14 @@ def generate_scenarios(events: list[VerifiedEvent]) -> list[Scenario]:
         parameters_source = {
             "event_id": event.event_id,
             "origin": "signal_claim (seeded feed)",
+            "claimed_duration_days": claimed_duration,
             "clamped": {
                 "duration_days": dur_clamped,
                 "transit_delay_days": delay_clamped,
                 "capacity_factor": cap_clamped,
             },
             "bounds": clamp_cfg,
+            "duration_prior": prior,
         }
 
         horizons = Thresholds.load().horizons_days
@@ -432,6 +539,14 @@ def generate_scenarios(events: list[VerifiedEvent]) -> list[Scenario]:
         total = sum(raws.values()) or 1.0
 
         for horizon in horizons:
+            narrative_text, narrative_source = _scenario_narrative(
+                event,
+                corridor=str(event.claim.get("corridor") or event.target),
+                duration_days=dur,
+                transit_delay_days=delay,
+                capacity_factor=cap,
+                horizon_days=horizon,
+            )
             scenarios.append(
                 Scenario(
                     scenario_id=f"SCN-{event.event_id}-{horizon}D",
@@ -445,10 +560,8 @@ def generate_scenarios(events: list[VerifiedEvent]) -> list[Scenario]:
                     probability_weight=raws[horizon] / total,
                     confidence=event.confidence,
                     affected_lanes=[],  # filled by A3 once the network is loaded
-                    narrative=(
-                        f"Corridor disrupted for {dur:g} days with {delay:g} days of added "
-                        f"transit. Evaluated over a {horizon}-day planning window."
-                    ),
+                    narrative=narrative_text,
+                    narrative_source=narrative_source,
                     parameters_source=parameters_source,
                     contributed_by_events=[event.event_id],
                 )
