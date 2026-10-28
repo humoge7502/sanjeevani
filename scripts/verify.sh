@@ -70,7 +70,7 @@ else
   FAILED=1
 fi
 
-# 396 tests. Markers: unit · contract · integration · e2e · redteam. The markers
+# 445 tests. Markers: unit · contract · integration · e2e · redteam. The markers
 # OVERLAP (integration cases live inside the e2e module), so the suite total is
 # the honest number and summing the markers would double-count.
 step "5/10  Backend test suite (unit · contract · integration · e2e · red team)"
@@ -104,6 +104,9 @@ elif [[ -z "$(ls "${LOCALAPPDATA:-}/ms-playwright" 2>/dev/null)" && ! -d "$PLAYW
   echo "  SKIPPED - install browsers first: (cd frontend && npx playwright install chromium)"
 else
   run bash -c "cd frontend && npx playwright test"
+  # The optimizer surfaces have their own suite: the main config boots the
+  # default (fixture) provider, so its specs never see the solver-trace panel.
+  run bash -c "cd frontend && npx playwright test --config playwright.optimizer.config.ts"
 fi
 
 step "9/10  Frontend production build"

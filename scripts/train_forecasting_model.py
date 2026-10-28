@@ -211,7 +211,14 @@ def export_portable(model, *, feature_names: list[str], learning_rate: float, ba
     }
 
 
-def train(rows: int, seed: int, out_dir: Path, test_size: float = 0.2, val_size: float = 0.2):
+def train(
+    rows: int,
+    seed: int,
+    out_dir: Path,
+    test_size: float = 0.2,
+    val_size: float = 0.2,
+    split: str = "shuffled",
+):
     import numpy as np
     from sklearn.ensemble import GradientBoostingRegressor
     from sklearn.metrics import mean_absolute_error, r2_score
@@ -221,16 +228,43 @@ def train(rows: int, seed: int, out_dir: Path, test_size: float = 0.2, val_size:
     dataset_path = out_dir / "disruption_duration_training.csv"
     frame.to_csv(dataset_path, index=False)
 
-    # A shuffled split over an i.i.d. synthetic frame; a real historical dataset
-    # would need a TIME-based split, and that is noted in the metadata rather
-    # than quietly assumed away.
-    shuffled = frame.sample(frac=1.0, random_state=seed).reset_index(drop=True)
-    n_total = len(shuffled)
-    n_test = int(n_total * test_size)
-    n_val = int(n_total * val_size)
-    test = shuffled.iloc[:n_test]
-    validation = shuffled.iloc[n_test : n_test + n_val]
-    train_frame = shuffled.iloc[n_test + n_val :]
+    # Two split modes, both deterministic:
+    #   shuffled (default) -- the i.i.d. shuffle the shipped artifact documents.
+    #   time -- trains on the EARLIEST rows and scores the LATEST, matching how
+    #           a real deployment consumes a model: past observations in, future
+    #           events out. The generated rows are i.i.d. draws, so generation
+    #           order is only a *proxy* for time -- the metadata says exactly
+    #           that rather than implying temporal proof the data cannot give.
+    if split == "time":
+        ordered = frame.reset_index(drop=True)
+        n_total = len(ordered)
+        n_test = int(n_total * test_size)
+        n_val = int(n_total * val_size)
+        test = ordered.iloc[n_total - n_test :]
+        validation = ordered.iloc[n_total - n_test - n_val : n_total - n_test]
+        train_frame = ordered.iloc[: n_total - n_test - n_val]
+        split_note = (
+            "time-ordered 60/20/20 over generation order: train on the earliest "
+            "rows, validate then test on the latest. The rows are i.i.d. synthetic "
+            "draws, so order is a proxy for time -- this matches the deployment "
+            "assumption but does not, by itself, prove temporal generalisation "
+            "over real history."
+        )
+    elif split == "shuffled":
+        shuffled = frame.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+        n_total = len(shuffled)
+        n_test = int(n_total * test_size)
+        n_val = int(n_total * val_size)
+        test = shuffled.iloc[:n_test]
+        validation = shuffled.iloc[n_test : n_test + n_val]
+        train_frame = shuffled.iloc[n_test + n_val :]
+        split_note = (
+            "shuffled 60/20/20. A real historical dataset must use a TIME-based "
+            "split; an i.i.d. shuffle over generated rows does not leak, but it "
+            "also does not prove temporal generalisation."
+        )
+    else:
+        raise SystemExit(f"unknown split {split!r}: use 'shuffled' or 'time'")
 
     x_train = train_frame[FEATURES].to_numpy(dtype=float)
     y_train = train_frame["duration_days"].to_numpy(dtype=float)
@@ -301,11 +335,7 @@ def train(rows: int, seed: int, out_dir: Path, test_size: float = 0.2, val_size:
             "sha256": hashlib.sha256(dataset_path.read_bytes()).hexdigest(),
             "rows": n_total,
             "generator_seed": seed,
-            "split": (
-                "shuffled 60/20/20. A real historical dataset must use a TIME-based "
-                "split; an i.i.d. shuffle over generated rows does not leak, but it "
-                "also does not prove temporal generalisation."
-            ),
+            "split": split_note,
         },
         "evidence_anchors": EVIDENCE_ANCHORS,
         "environment": {
@@ -344,14 +374,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rows", type=int, default=6000)
     parser.add_argument("--seed", type=int, default=20260930)
+    parser.add_argument(
+        "--split",
+        choices=["shuffled", "time"],
+        default="shuffled",
+        help="shuffled i.i.d. split (shipped artifact) or time-ordered split "
+        "(train on the earliest rows, score the latest)",
+    )
     parser.add_argument("--out", default=str(REPO_ROOT / "data" / "ml"))
     args = parser.parse_args()
 
-    report = train(args.rows, args.seed, Path(args.out))
+    report = train(args.rows, args.seed, Path(args.out), split=args.split)
     print("SANJEEVANI disruption-duration forecaster\n")
     print(f"  dataset   {report.dataset_path}")
     print(
-        f"  split     {report.train_rows} train · {report.validation_rows} validation · "
+        f"  split     [{args.split}] {report.train_rows} train · {report.validation_rows} validation · "
         f"{report.test_rows} test"
     )
     print(f"  test MAE  {report.mae_days:.3f} days  (baseline {report.baseline_mae_days:.3f})")

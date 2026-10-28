@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "playwright test",
+    "test:browser:optimizer": "playwright test --config playwright.optimizer.config.ts",
     "test:browser:headed": "playwright test --project=chromium-desktop --headed",
     "test:browser:report": "playwright show-report"
   },

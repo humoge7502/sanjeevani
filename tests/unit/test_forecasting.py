@@ -349,3 +349,37 @@ def test_enabling_the_model_blends_the_prior_but_stays_inside_the_clamps(monkeyp
     finally:
         reload_config()
         reset_cache()
+
+
+# ---------------------------------------------------------------------------
+# The time-ordered split (ADR 0012's admitted debt, closed)
+# ---------------------------------------------------------------------------
+
+
+def test_the_time_split_trains_on_the_past_and_scores_the_future():
+    """--split time must partition positionally: earliest rows train, latest test.
+
+    The rows are i.i.d. draws, so this matches the deployment assumption without
+    pretending to prove temporal generalisation -- and the metadata must say
+    exactly that instead of implying more than the data supports.
+    """
+    import tempfile
+    from pathlib import Path
+
+    module = _load_training_script()
+    with tempfile.TemporaryDirectory() as tmp:
+        report = module.train(400, 20260930, Path(tmp), split="time")
+        metadata = module.json.loads(report.metadata_path.read_text(encoding="utf-8"))
+
+    # Positional partition, in generation order: train < validation < test.
+    assert report.train_rows + report.validation_rows + report.test_rows == 400
+    assert report.train_rows == 240
+    assert report.validation_rows == 80
+    assert report.test_rows == 80
+    assert "time-ordered" in metadata["dataset"]["split"]
+    assert "proxy for time" in metadata["dataset"]["split"]
+
+    # The shipped default stays the documented shuffled split.
+    with tempfile.TemporaryDirectory() as tmp:
+        shuffled_report = module.train(400, 20260930, Path(tmp))
+    assert shuffled_report.test_rows == 80

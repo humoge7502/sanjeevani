@@ -24,6 +24,7 @@ months from now, "why is there no charting library?" is answerable by reading
 | [0013](0013-sqlite-is-a-ledger-mirror.md) | SQLite is a mirror of the ledger, never a second source of truth | Accepted |
 | [0014](0014-feeds-are-opt-in-and-fetches-are-snapshotted.md) | Live signal feeds are opt-in, and every fetch is snapshotted before it touches the pipeline | Accepted |
 | [0015](0015-the-des-is-a-cross-check-not-a-second-opinion.md) | The discrete-event simulation is a cross-check that is reported, never averaged | Accepted |
+| [0016](0016-the-approval-registry-is-tenant-scoped.md) | A governance journey belongs to the tenant that created it; the registry refuses everyone else | Accepted |
 
 ## Format
 

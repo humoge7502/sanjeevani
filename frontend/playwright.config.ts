@@ -21,7 +21,14 @@ const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
 export default defineConfig({
   testDir: "./e2e",
   // Vitest owns `src/**/*.test.ts`. Keep the two runners disjoint.
-  testIgnore: ["**/node_modules/**", "**/dist/**"],
+  testIgnore: [
+    "**/node_modules/**",
+    "**/dist/**",
+    // The optimizer specs run under playwright.optimizer.config.ts, whose
+    // backend is booted with SANJEEVANI_PLAN_PROVIDER=optimizer; under this
+    // fixture-mode server they would fail by design.
+    /optimizer\.spec\.ts/,
+  ],
 
   fullyParallel: false,
   // The backend holds one mutable demo state (ledger, approvals, SAP mocks).

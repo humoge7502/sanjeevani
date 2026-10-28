@@ -180,6 +180,7 @@ async def governance_error_handler(_: Request, exc: GovernanceError) -> JSONResp
         "ALREADY_DECIDED": 409,
         "ILLEGAL_TRANSITION": 409,
         "UNAUTHORIZED_APPROVER": 403,
+        "TENANT_MISMATCH": 403,
         "NO_ACTIVE_PLAN": 404,
         "UNKNOWN_PLAN": 404,
         "NO_ACTIVE_RUN": 404,
@@ -599,8 +600,9 @@ def demo_reset(principal: Annotated[Principal, Depends(require_admin)]) -> dict[
 @app.post("/api/demo/run")
 def demo_run(principal: Annotated[Principal, Depends(require_authenticated)]) -> dict[str, Any]:
     """Run M1 -> M2 -> M3 governance. Stops at the approval gate."""
-    del principal
-    return orchestrator.run()
+    # The plan's governance journey is owned by the caller's tenant: the
+    # verified token's claim when auth is on, the demo tenant when it is off.
+    return orchestrator.run(tenant=principal.tenant)
 
 
 @app.get("/api/demo/scenario")
@@ -661,7 +663,11 @@ def _decide(
     identity = _acting_identity(principal, body.actor_id)
     try:
         return orchestrator.decide(
-            decision, identity["id"], body.rationale, actor_identity=identity
+            decision,
+            identity["id"],
+            body.rationale,
+            actor_identity=identity,
+            tenant=principal.tenant,
         )
     except GovernanceError as exc:
         record_governance(decision.value.lower(), exc.code.lower())
@@ -707,9 +713,8 @@ def execute(
     principal: Annotated[Principal, Depends(current_principal)],
 ) -> dict[str, Any]:
     """Execute an approved plan. Requires APPROVED state; there is no override."""
-    del principal
     _assert_active_plan(plan_id)
-    return orchestrator.execute()
+    return orchestrator.execute(tenant=principal.tenant)
 
 
 @app.get("/api/plans/{plan_id}/governance")
@@ -717,8 +722,7 @@ def plan_governance(
     plan_id: str,
     principal: Annotated[Principal, Depends(require_authenticated)],
 ) -> dict[str, Any]:
-    del principal
-    gov = registry.get_or_create(plan_id)
+    gov = registry.get_or_create(plan_id, tenant=principal.tenant)
     from backend.governance.approval import ALLOWED
 
     return {

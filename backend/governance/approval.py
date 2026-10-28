@@ -57,6 +57,26 @@ TERMINAL = {
     ApprovalState.COMPLETED,
 }
 
+def _default_tenant() -> str:
+    """The journey owner used when a caller does not declare a tenant.
+
+    Resolved lazily from the identity roster's default (never at import time,
+    so a config reload takes effect), with a constant fallback for a checkout
+    without an identity file. With authentication off, every caller resolves to
+    this same demo tenant, so the offline demo is byte-identical to before
+    tenancy existed. NOTE: the API layer always declares the caller's tenant
+    explicitly; this default exists for scripts, tests and safety nets.
+    """
+    try:
+        from backend.security.identity import store
+
+        return store.default_tenant
+    except OSError as identity_unreadable:  # the identity file is missing/unreadable
+        raise SystemExit(
+            "the identity roster is required to resolve the default tenant: "
+            f"{identity_unreadable}"
+        ) from identity_unreadable
+
 ALLOWED: dict[ApprovalState, set[ApprovalState]] = {
     ApprovalState.RECEIVED: {ApprovalState.POLICY_CHECKING},
     ApprovalState.POLICY_CHECKING: {
@@ -130,6 +150,9 @@ class PlanGovernance:
 
     plan_id: str
     state: ApprovalState = ApprovalState.RECEIVED
+    #: The tenant that owns this journey. A caller from a different tenant is
+    #: refused at the registry, before any state can be read or moved.
+    tenant: str = field(default_factory=lambda: _default_tenant())
     required_role: str | None = None
     risk_tier: str = "L1"
     transitions: list[Transition] = field(default_factory=list)
@@ -147,6 +170,7 @@ class PlanGovernance:
         return {
             "plan_id": self.plan_id,
             "state": self.state.value,
+            "tenant": self.tenant,
             "risk_tier": self.risk_tier,
             "required_role": self.required_role,
             "approval_required": self.approval_required,
@@ -248,6 +272,11 @@ class ApprovalRegistry:
     Deliberately process-local: the ledger is the durable record, and a restart
     therefore *loses* execution authority rather than carrying it forward. That
     is the safe direction to fail (a restart cannot resurrect an approval).
+
+    Tenant-scoped: a journey belongs to the tenant that created it, and a
+    caller from a different tenant is refused with TENANT_MISMATCH rather than
+    handed a parallel journey for the same plan. With authentication off, every
+    caller resolves to the same demo tenant, so the offline demo is unchanged.
     """
 
     def __init__(self) -> None:
@@ -258,12 +287,22 @@ class ApprovalRegistry:
         with self._lock:
             self._plans.clear()
 
-    def get_or_create(self, plan_id: str) -> PlanGovernance:
+    def get_or_create(self, plan_id: str, *, tenant: str | None = None) -> PlanGovernance:
         with self._lock:
-            if plan_id not in self._plans:
-                self._plans[plan_id] = PlanGovernance(plan_id=plan_id)
-            return self._plans[plan_id]
-
+            effective = tenant or _default_tenant()
+            existing = self._plans.get(plan_id)
+            if existing is not None:
+                if existing.tenant != effective:
+                    raise GovernanceError(
+                        "TENANT_MISMATCH",
+                        f"Plan {plan_id} belongs to tenant {existing.tenant!r}; a "
+                        f"caller from tenant {effective!r} cannot act on it.",
+                        {"plan_tenant": existing.tenant, "caller_tenant": effective},
+                    )
+                return existing
+            governance = PlanGovernance(plan_id=plan_id, tenant=effective)
+            self._plans[plan_id] = governance
+            return governance
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             return {pid: g.as_dict() for pid, g in self._plans.items()}

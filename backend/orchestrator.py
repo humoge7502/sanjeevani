@@ -122,9 +122,24 @@ class DemoOrchestrator:
         }
 
     # ----------------------------------------------------------------------- run
-    def run(self) -> dict[str, Any]:
+    def _effective_tenant(self, tenant: str | None = None) -> str:
+        """The tenant a governance journey is owned by / acted on under.
+
+        Explicit wins; otherwise the demo default. With authentication off the
+        API passes the demo principal's tenant, which equals this default, so
+        the offline demo is unchanged; with authentication on the API passes the
+        verified token's tenant, and a mismatch is refused at the registry.
+        """
+        if tenant:
+            return tenant
+        from backend.security.principal import demo_principal
+
+        return demo_principal().tenant
+
+    def run(self, *, tenant: str | None = None) -> dict[str, Any]:
         """Run M1 -> M2 boundary -> M3 governance. STOPS at the approval gate."""
         with self._lock:
+            self._tenant = self._effective_tenant(tenant)
             self._state = RunState(run_id="RUN-HERO-001", started_at=isoformat(scenario_clock()))
             # Load and validate the config before any work starts. This is a
             # deliberate fail-fast: a malformed settings file should abort the
@@ -198,7 +213,7 @@ class DemoOrchestrator:
             )
 
             # ---- M3 governance ---------------------------------------------
-            gov = registry.get_or_create(plan.plan_id)
+            gov = registry.get_or_create(plan.plan_id, tenant=self._tenant)
             record = compliance.evaluate_plan(gov, plan, m1.network, m1.events)
             self._state.compliance_record = record
             self._record_governance(record, gov)
@@ -234,6 +249,7 @@ class DemoOrchestrator:
         rationale: str | None = None,
         *,
         actor_identity: dict[str, Any] | None = None,
+        tenant: str | None = None,
     ) -> dict[str, Any]:
         """Record a human decision. The ONLY way out of APPROVAL_REQUIRED.
 
@@ -250,7 +266,9 @@ class DemoOrchestrator:
                     "NO_ACTIVE_PLAN",
                     "No plan is loaded. Run the scenario before attempting a decision.",
                 )
-            gov = registry.get_or_create(plan.plan_id)
+            gov = registry.get_or_create(
+                plan.plan_id, tenant=self._effective_tenant(tenant)
+            )
             actor = actor_identity if actor_identity is not None else resolve_actor(actor_id)
 
             if gov.state is not ApprovalState.APPROVAL_REQUIRED:
@@ -378,7 +396,7 @@ class DemoOrchestrator:
             return self.state_snapshot()
 
     # ----------------------------------------------------------------- execution
-    def execute(self) -> dict[str, Any]:
+    def execute(self, *, tenant: str | None = None) -> dict[str, Any]:
         """Execute an approved plan. Refuses on any non-approved state.
 
         Idempotency vs authority: a *repeated* execute on an already-executed plan
@@ -391,7 +409,9 @@ class DemoOrchestrator:
             plan = self._state.plan
             if plan is None:
                 raise GovernanceError("NO_ACTIVE_PLAN", "No plan is loaded.")
-            gov = registry.get_or_create(plan.plan_id)
+            gov = registry.get_or_create(
+                plan.plan_id, tenant=self._effective_tenant(tenant)
+            )
 
             _DONE = {
                 ApprovalState.EXECUTED,
@@ -676,7 +696,11 @@ class DemoOrchestrator:
     def state_snapshot(self) -> dict[str, Any]:
         """The single payload the frontend renders."""
         plan = self._state.plan
-        gov = registry.get_or_create(plan.plan_id) if plan else None
+        gov = (
+            registry.get_or_create(plan.plan_id, tenant=getattr(self, "_tenant", None))
+            if plan
+            else None
+        )
         return {
             "run_id": self._state.run_id or None,
             "started_at": self._state.started_at or None,

@@ -2,9 +2,10 @@
 
 **Date:** 2026-10-28
 **Baseline:** the state after the 2026-10 comprehensive audit's workstreams W1–W10 all
-landed and verified (`e2da557`), plus this document's own W11–W13 (netguard,
-ledger attestation, stress harness) — **439 backend + 46 frontend + 48 browser
-tests, `bash scripts/verify.sh` 10/10 green.**
+landed and verified (`e2da557`), plus this document's own W11–W17 (netguard,
+ledger attestation, stress harness, tenant-scoped registry, optimizer browser
+suite, forecaster time split, attestation pre-flight) — **445 backend + 46
+frontend + 52 browser tests, `bash scripts/verify.sh` 10/10 green.**
 Predecessor: [`2026-10-comprehensive-audit-and-roadmap.md`](2026-10-comprehensive-audit-and-roadmap.md)
 (2026-10-25). That audit's issues C-1, C-2, H-1…H-6, M-1…M-7 and workstreams W1–W8
 are implemented; W9 (DES) and W10 (learning shape) landed after it. This document
@@ -257,6 +258,11 @@ overclaims, and the docs show their working.
 | W11 netguard | `backend/security/netguard.py`, wiring in feeds/narrative, `config/settings.yaml`, tests/unit/test_netguard.py | 21 tests incl. rebind-shaped resolution and both real callers; suite stays offline-pure |
 | W12 attestation | `backend/audit/attestation.py`, `scripts/attest_ledger.py`, tests/unit/test_attestation.py | 15 tests: round-trip, six tamper classes, prefix rule, CLI incl. broken-chain and truncation refusal |
 | W13 stress harness | `scripts/stress.py`, tests/unit/test_stress.py | 3 tests; the 6-cell default matrix holds determinism and admissibility |
+| W14 tenant-scoped registry (closes N-1) | `backend/governance/approval.py`, `backend/orchestrator.py`, `backend/api/app.py`, ADR 0016, tests/redteam/test_tenant_isolation.py | 5 red-team tests driving the real ASGI app: a same-role, different-tenant principal is refused (403 TENANT_MISMATCH) on approve/governance-read/execute; the owning tenant completes the whole gate; the demo path with auth off is byte-identical |
+| W15 optimizer-mode browser suite (closes N-3) | `frontend/playwright.optimizer.config.ts`, `frontend/e2e/optimizer.spec.ts`, npm script, verify.sh step 8 | 4 real-Chromium tests: provider badge, both M2 stages done, the Why-this-plan panel (solve, DES cross-check side by side, counterfactuals), reset semantics |
+| W16 forecaster time split (closes N-4) | `scripts/train_forecasting_model.py --split time`, tests/unit/test_forecasting.py | positional 60/20/20 (earliest train, latest test); metadata says "proxy for time" rather than claiming temporal proof; the shipped default remains the documented shuffled split |
+| W17 attestation pre-flight (closes L-4) | `scripts/health.py` | health signs + verifies the head and asserts a forged mac is refused, in a self-seeded two-record chain that leaves the runtime clean |
 
-*Shipped alongside: this document. Remaining from §2: N-1 (registry tenancy), N-3
-(optimizer-mode browser project), N-4 (temporal split) — sequenced next.*
+*Shipped alongside: this document, then W14–W17 (N-1, N-3, N-4 and L-4 closed).
+Remaining from §2: N-2 (shared-store scaling foundation, 3–5 d), N-5 (audit
+re-verify cadence), N-6 (DES contradiction KPI) and the §2.3 debt register.*

@@ -288,6 +288,51 @@ def main() -> int:
             f"waits: {', '.join(waits)}"
         )
 
+    def audit_attestation() -> str:
+        """Sign the current ledger head and verify it, then refuse a forgery.
+
+        Pure round-trip: nothing is written to disk, and the ephemeral key lives
+        only for this check. Proves the anchor path works before a demo leans
+        on it. Must run AFTER the hero-demo check so the ledger has a head.
+        """
+        from datetime import UTC, datetime
+
+        from backend.audit.attestation import (
+            AttestationError,
+            attest_head,
+            verify_attestation,
+        )
+        from backend.audit.ledger import ledger
+
+        # The hero-demo check ends with orchestrator.reset(), so this check
+        # seeds its own two-record chain and leaves the runtime clean again.
+        ledger.reset()
+        ledger.append("SIGNAL_RECEIVED", "HEALTH", "seed")
+        ledger.append("EVENT_VERIFIED", "HEALTH", "seed")
+        verdict = ledger.verify_chain()
+        assert verdict["intact"], "cannot attest a broken chain"
+        head, length = str(verdict["head"] or ""), int(verdict["records"])
+        assert head, "the ledger has no head"
+        key = "health-preflight-" + "k" * 40
+        attestation = attest_head(
+            head_hash=head,
+            length=length,
+            key=key,
+            key_id="health-preflight",
+            created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        )
+        verify_attestation(attestation, key=key, head_hash=head, length=length)
+        try:
+            verify_attestation(
+                {**attestation, "mac": "0" * 64}, key=key, head_hash=head, length=length
+            )
+        except AttestationError:
+            pass
+        else:  # pragma: no cover - only reachable if the anchor stops refusing
+            raise AssertionError("a forged attestation verified; the anchor is broken")
+        ledger.reset()
+        return f"signed + verified head {head[:12]}… ({length} records); tamper refused"
+
     def authentication() -> str:
         from backend.security import (
             TokenService,
@@ -400,6 +445,7 @@ def main() -> int:
 
     print("\nEnd-to-end")
     check("Hero demo path", demo_path)
+    check("Ledger-head attestation (sign + verify + tamper refusal)", audit_attestation)
     check("Offline guarantee", offline_guarantee)
     check("Frontend assets", frontend_assets)
 
