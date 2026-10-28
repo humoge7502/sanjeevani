@@ -262,7 +262,12 @@ overclaims, and the docs show their working.
 | W15 optimizer-mode browser suite (closes N-3) | `frontend/playwright.optimizer.config.ts`, `frontend/e2e/optimizer.spec.ts`, npm script, verify.sh step 8 | 4 real-Chromium tests: provider badge, both M2 stages done, the Why-this-plan panel (solve, DES cross-check side by side, counterfactuals), reset semantics |
 | W16 forecaster time split (closes N-4) | `scripts/train_forecasting_model.py --split time`, tests/unit/test_forecasting.py | positional 60/20/20 (earliest train, latest test); metadata says "proxy for time" rather than claiming temporal proof; the shipped default remains the documented shuffled split |
 | W17 attestation pre-flight (closes L-4) | `scripts/health.py` | health signs + verifies the head and asserts a forged mac is refused, in a self-seeded two-record chain that leaves the runtime clean |
+| W18 attestation chain-of-custody API (closes AF-9) | `backend/api/app.py` `GET /api/audit/attestations`, tests/unit/test_attestation.py | 4 API tests: verified against the live chain, forged → FAILED, no key → unverified_no_key, truncated prefix → ledger_shorter_than_attested |
+| W19 chaos drill (closes AF-10) | `scripts/chaos.py`, tests/unit/test_chaos.py | 2 unit tests + the CLI: four composed degradations held in one deterministic run (solver gone, ledger tamper, DES veto, foreign tenant) |
+| W20 DES contradiction surfaced (closes N-6) | `frontend/src/components/GovernancePanels.tsx`, `frontend/e2e/optimizer.spec.ts` | a contradiction leads the evidence panel as a warning; the optimizer spec asserts the recommended plan's verdict badge renders |
 
-*Shipped alongside: this document, then W14–W17 (N-1, N-3, N-4 and L-4 closed).
-Remaining from §2: N-2 (shared-store scaling foundation, 3–5 d), N-5 (audit
-re-verify cadence), N-6 (DES contradiction KPI) and the §2.3 debt register.*
+*Shipped alongside: this document, then W14–W20 (N-1, N-3, N-4, L-4, AF-9,
+AF-10 and N-6 closed). Remaining from §2: **N-2** — the shared-store scaling
+foundation (3–5 d of real architecture, deliberately not rushed) — plus N-5
+(the audit endpoint's always-recompute primitive is a documented deliberate
+cost, bounded by pagination) and the §2.3 debt register.*

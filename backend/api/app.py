@@ -446,6 +446,83 @@ def policies(principal: Annotated[Principal, Depends(require_authenticated)]) ->
     }
 
 
+@app.get("/api/audit/attestations")
+def audit_attestations(
+    principal: Annotated[Principal, Depends(require_authenticated)],
+) -> dict[str, Any]:
+    """Chain-of-custody for the ledger head: every attestation on disk, verified.
+
+    Read-only companion to ``scripts/attest_ledger.py``. Each attestation file
+    under ``<runtime>/attestations/`` is listed with its verification status
+    against the LIVE chain: an attestation covers a *prefix*, so it verifies
+    while the chain has grown, and fails the moment the attested prefix no
+    longer matches (edited records, or a truncated ledger). Without the signing
+    key in the environment the files are listed as ``unverified_no_key`` --
+    stated honestly rather than guessed.
+    """
+    del principal
+    import json as _json
+    import os as _os
+
+    from backend.audit.attestation import DEFAULT_KEY_ENV, AttestationError, verify_attestation
+
+    directory = ledger.path.parent / "attestations"
+    chain = ledger.verify_chain_memoised()  # polling read; appends invalidate it
+    chain_head, chain_length = str(chain["head"] or ""), int(chain["records"])
+    key = _os.environ.get(DEFAULT_KEY_ENV, "")
+
+    items: list[dict[str, Any]] = []
+    if directory.is_dir():
+        for path in sorted(directory.glob("attest-*.json")):
+            entry: dict[str, Any] = {"file": path.name}
+            try:
+                attestation = _json.loads(path.read_text(encoding="utf-8"))
+            except ValueError:
+                entry["status"] = "unreadable"
+                items.append(entry)
+                continue
+            entry.update(
+                {
+                    "kind": attestation.get("kind"),
+                    "head_hash": attestation.get("head_hash"),
+                    "length": attestation.get("length"),
+                    "key_id": attestation.get("key_id"),
+                    "created_at": attestation.get("created_at"),
+                }
+            )
+            if not key:
+                entry["status"] = "unverified_no_key"
+            elif not chain["intact"]:
+                entry["status"] = "chain_broken"
+            elif int(attestation.get("length") or 0) > chain_length:
+                entry["status"] = "ledger_shorter_than_attested"
+            else:
+                try:
+                    attested_head = ledger.records()[int(attestation["length"]) - 1]["hash"]
+                    verify_attestation(
+                        attestation,
+                        key=key,
+                        head_hash=str(attested_head),
+                        length=int(attestation["length"]),
+                    )
+                    entry["status"] = "verified"
+                except AttestationError as exc:
+                    entry["status"] = "FAILED"
+                    entry["reason"] = str(exc)
+            items.append(entry)
+
+    return {
+        "directory": str(directory),
+        "signing_key_present": bool(key),
+        "chain": {
+            "head": chain_head,
+            "records": chain_length,
+            "intact": chain["intact"],
+        },
+        "attestations": items,
+    }
+
+
 @app.get("/api/audit")
 def audit(
     principal: Annotated[Principal, Depends(require_authenticated)],

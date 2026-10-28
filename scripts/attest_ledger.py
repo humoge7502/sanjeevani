@@ -35,13 +35,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.audit.attestation import (
+    DEFAULT_KEY_ENV,
     AttestationError,
     attest_head,
     verify_attestation,
 )
 from backend.audit.ledger import ledger
 
-DEFAULT_KEY_ENV = "SANJEEVANI_ATTESTATION_KEY"
 DEFAULT_DIR = REPO_ROOT / "runtime" / "attestations"
 
 

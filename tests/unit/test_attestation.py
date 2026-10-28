@@ -181,3 +181,88 @@ def test_a_missing_key_is_a_usage_error_not_a_signature(seeded_ledger, monkeypat
 
         main()
     assert excinfo.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# The chain-of-custody API (AF-9)
+# ---------------------------------------------------------------------------
+
+
+def _seed_attestation_file(ledger, key: str = KEY) -> Path:
+    import json
+
+    verdict = ledger.verify_chain()
+    att = attest_head(
+        head_hash=str(verdict["head"]),
+        length=int(verdict["records"]),
+        key=key,
+        key_id="api-test",
+        created_at="2026-10-28T00:00:00+00:00",
+    )
+    directory = Path(ledger.path).parent / "attestations"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"attest-{att['length']:05d}-{att['head_hash'][:8]}.json"
+    path.write_text(json.dumps(att, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def test_the_custody_endpoint_verifies_attestations_against_the_live_chain(
+    seeded_ledger, monkeypatch
+):
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import app
+
+    _seed_attestation_file(seeded_ledger)
+    monkeypatch.setenv("SANJEEVANI_ATTESTATION_KEY", KEY)
+    with TestClient(app) as client:
+        payload = client.get("/api/audit/attestations").json()
+    assert payload["signing_key_present"] is True
+    assert payload["chain"]["intact"] is True
+    assert len(payload["attestations"]) == 1
+    assert payload["attestations"][0]["status"] == "verified"
+
+
+def test_a_forged_attestation_is_reported_failed_not_hidden(seeded_ledger, monkeypatch):
+    import json as json_mod
+
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import app
+
+    path = _seed_attestation_file(seeded_ledger)
+    att = json_mod.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json_mod.dumps({**att, "mac": "0" * 64}), encoding="utf-8")
+    monkeypatch.setenv("SANJEEVANI_ATTESTATION_KEY", KEY)
+    with TestClient(app) as client:
+        payload = client.get("/api/audit/attestations").json()
+    assert payload["attestations"][0]["status"] == "FAILED"
+
+
+def test_without_the_key_the_endpoint_says_unverified_rather_than_guessing(
+    seeded_ledger, monkeypatch
+):
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import app
+
+    _seed_attestation_file(seeded_ledger)
+    monkeypatch.delenv("SANJEEVANI_ATTESTATION_KEY", raising=False)
+    with TestClient(app) as client:
+        payload = client.get("/api/audit/attestations").json()
+    assert payload["signing_key_present"] is False
+    assert payload["attestations"][0]["status"] == "unverified_no_key"
+
+
+def test_an_attestation_of_a_truncated_prefix_is_reported_failed(seeded_ledger, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from backend.api.app import app
+
+    _seed_attestation_file(seeded_ledger)
+    monkeypatch.setenv("SANJEEVANI_ATTESTATION_KEY", KEY)
+    seeded_ledger.reset()
+    seeded_ledger.append("SIGNAL_RECEIVED", "test", "seed")
+    with TestClient(app) as client:
+        payload = client.get("/api/audit/attestations").json()
+    assert payload["attestations"][0]["status"] == "ledger_shorter_than_attested"

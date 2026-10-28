@@ -36,6 +36,8 @@ from typing import Any
 
 ATTESTATION_VERSION = "1.0.0"
 KIND_HMAC_SHA256 = "hmac-sha256-head-v1"
+#: The environment variable callers read the signing key from, by convention.
+DEFAULT_KEY_ENV = "SANJEEVANI_ATTESTATION_KEY"
 
 
 class AttestationError(RuntimeError):

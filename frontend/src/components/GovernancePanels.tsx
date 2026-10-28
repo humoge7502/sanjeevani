@@ -177,6 +177,20 @@ export function OptimizerEvidence({ evidence }: { evidence: M2Evidence }): JSX.E
       </div>
       <div className="panel__body">
         <div className="stack">
+          {/* N-6: a contradiction is the single most important thing this panel
+              can say, so when the queueing model disagrees with the closed form
+              it leads the panel instead of hiding in the trace. */}
+          {cross.contradicts && (
+            <Note tone="note--warn" glyph="⚠">
+              <strong>
+                The discrete-event cross-check contradicts the twin by{" "}
+                {num(Math.abs(cross.delta_hours), 1)} h
+              </strong>{" "}
+              — beyond the {num(cross.tolerance_hours, 0)} h tolerance. The queue found
+              time the closed form missed; read the counterfactuals below before
+              trusting this plan's recovery number.
+            </Note>
+          )}
           <div className="grid grid--2">
             <div className="stack stack--tight">
               <div className="small muted">The solve</div>
