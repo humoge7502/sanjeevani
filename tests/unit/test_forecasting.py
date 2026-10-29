@@ -363,6 +363,7 @@ def test_the_time_split_trains_on_the_past_and_scores_the_future():
     pretending to prove temporal generalisation -- and the metadata must say
     exactly that instead of implying more than the data supports.
     """
+    pytest.importorskip("numpy")  # train() imports the numeric stack; CI has no ML deps
     import tempfile
     from pathlib import Path
 
