@@ -6,11 +6,11 @@
 #
 # Pinned to the versions this repository was verified against.
 
-fastapi==0.136.3
-uvicorn==0.51.0
-pydantic==2.13.4
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.1
 PyYAML==6.0.3
-networkx==3.6.1
+networkx==3.7
 
 # ---- M2 optimizer (optional at runtime, present by default) ------------------
 # PuLP drives the multi-objective recovery program in backend/m2/optimizer.py and
@@ -18,7 +18,7 @@ networkx==3.6.1
 # solve fails, the optimizer falls back to exact enumeration (which is optimal for
 # this network's five-consignment plans) and records why in its trace. A missing
 # solver degrades the *explanation*, never the answer.
-pulp==2.9.0
+pulp==4.2.0
 
 # SimPy drives the deterministic discrete-event cross-check in backend/m2/des.py
 # (chokepoint berths, closure windows, queue waits). It schedules a deterministic
