@@ -265,9 +265,15 @@ overclaims, and the docs show their working.
 | W18 attestation chain-of-custody API (closes AF-9) | `backend/api/app.py` `GET /api/audit/attestations`, tests/unit/test_attestation.py | 4 API tests: verified against the live chain, forged → FAILED, no key → unverified_no_key, truncated prefix → ledger_shorter_than_attested |
 | W19 chaos drill (closes AF-10) | `scripts/chaos.py`, tests/unit/test_chaos.py | 2 unit tests + the CLI: four composed degradations held in one deterministic run (solver gone, ledger tamper, DES veto, foreign tenant) |
 | W20 DES contradiction surfaced (closes N-6) | `frontend/src/components/GovernancePanels.tsx`, `frontend/e2e/optimizer.spec.ts` | a contradiction leads the evidence panel as a warning; the optimizer spec asserts the recommended plan's verdict badge renders |
+| W21 supply-chain gates (closes L-2) | `scripts/verify.sh` steps 5–6, `requirements-dev.txt`, frontend dev-dep patch bumps | pip-audit over runtime + dev requirements and `npm audit --audit-level=high` in the gate; both trees clean at landing (the four dev-only npm advisories were closed by patch bumps — vite 7.3.7, vitest 5.1.0, source-map-js 1.2.2 — so the gate starts from zero, not from an ignore list) |
+| W22 pyproject consolidation (closes L-1) | `pyproject.toml` (new); `mypy.ini`, `ruff.toml`, `pytest.ini` removed | settings migrated verbatim under `[tool.mypy]`/`[tool.ruff]`/`[tool.pytest.ini_options]`; lint, typecheck and pytest behaviour unchanged (gate re-run) |
+| W23 SBOM gate (closes L-3) | `scripts/make_sbom.py`, verify step 13 | deterministic freeze-based inventory of both dependency trees → `dist/sbom.json`, sorted and timestamp-free so runs are byte-comparable; documented as the honest cheap tool, not syft |
+| W24 L-5 measured and declined | `frontend/` (no change, by decision) | production bundle measured 230.76 kB min / 69.63 kB gzip, single chunk, 37 modules; a panel split defers ~12–27 kB gzip at the cost of a Suspense waterfall inside the byte-reproducible hero demo; revisit only if the bundle grows 3–4× |
+| W25 N-5 assessed and accepted | `backend/audit/ledger.py`, `backend/api/app.py` (read only) | verify-on-append already exists (`append()` → `_invalidate_memos()`); hot polling reads already served memoised (`verify_chain_memoised()`, the custody endpoint); `/api/audit`'s default recompute **is** the fail-closed tamper primitive — TTL-capping it would serve a stale "intact" verdict over a tampered chain for up to N minutes, a weakening the red-team tamper suite rightly forbids; the cheap path already exists (`verify=false`) for bounded paging, and the UI reads audit on demand, not in a polling loop |
 
-*Shipped alongside: this document, then W14–W20 (N-1, N-3, N-4, L-4, AF-9,
-AF-10 and N-6 closed). Remaining from §2: **N-2** — the shared-store scaling
-foundation (3–5 d of real architecture, deliberately not rushed) — plus N-5
-(the audit endpoint's always-recompute primitive is a documented deliberate
-cost, bounded by pagination) and the §2.3 debt register.*
+*Shipped alongside: this document, then W14–W25 (N-1, N-3, N-4, L-1…L-4, AF-9,
+AF-10 and N-6 closed; L-5 measured-and-declined and N-5 assessed-and-accepted
+with the evidence above). The gate is now thirteen steps and green. Remaining
+from §2: **N-2** — the shared-store scaling foundation (3–5 d of real
+architecture, deliberately not rushed) — which is now the only open item this
+analysis tracks.*

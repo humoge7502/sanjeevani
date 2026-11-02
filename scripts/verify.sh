@@ -45,16 +45,16 @@ run() {
   fi
 }
 
-step "1/10  Environment health check"
+step "1/13  Environment health check"
 run "$PYTHON" scripts/health.py
 
-step "2/10  Static check (backend compiles)"
+step "2/13  Static check (backend compiles)"
 run "$PYTHON" -m compileall -q backend scripts
 
 # Ruff and mypy live in requirements-dev.txt, not requirements.txt, because they
 # are not needed to RUN the demo. A missing tool is reported as a failure rather
 # than skipped: "lint passes" is only meaningful if lint actually ran.
-step "3/10  Python lint (ruff)"
+step "3/13  Python lint (ruff)"
 if "$PYTHON" -m ruff --version >/dev/null 2>&1; then
   run "$PYTHON" -m ruff check .
 else
@@ -62,7 +62,7 @@ else
   FAILED=1
 fi
 
-step "4/10  Python typecheck (mypy)"
+step "4/13  Python typecheck (mypy)"
 if "$PYTHON" -m mypy --version >/dev/null 2>&1; then
   run "$PYTHON" -m mypy backend scripts
 else
@@ -78,7 +78,7 @@ fi
 # source-map-js 1.2.1 -> 1.2.2), so the gate starts from zero rather than from
 # an ignore list. A pinned vulnerability is a patch bump in the requirements
 # file -- the gate failing is the feature.
-step "5/12  Dependency audit (Python: pip-audit, runtime + dev requirements)"
+step "5/13  Dependency audit (Python: pip-audit, runtime + dev requirements)"
 if "$PYTHON" -m pip_audit --version >/dev/null 2>&1; then
   run "$PYTHON" -m pip_audit -r requirements.txt -r requirements-dev.txt
 else
@@ -88,7 +88,7 @@ fi
 
 # Full dependency tree, threshold high: moderate dev-tool advisories stay
 # visible-but-green (judgement stays human), a high one fails the gate.
-step "6/12  Dependency audit (frontend: npm, full tree)"
+step "6/13  Dependency audit (frontend: npm, full tree)"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npm audit --audit-level=high"
 else
@@ -99,10 +99,10 @@ fi
 # 445 tests. Markers: unit · contract · integration · e2e · redteam. The markers
 # OVERLAP (integration cases live inside the e2e module), so the suite total is
 # the honest number and summing the markers would double-count.
-step "7/12  Backend test suite (unit · contract · integration · e2e · red team)"
+step "7/13  Backend test suite (unit · contract · integration · e2e · red team)"
 run "$PYTHON" -m pytest -q
 
-step "8/12  Frontend typecheck (app, design system and browser specs)"
+step "8/13  Frontend typecheck (app, design system and browser specs)"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npx tsc -b"
 else
@@ -110,7 +110,7 @@ else
   FAILED=1
 fi
 
-step "9/12  Frontend unit tests and static a11y guards"
+step "9/13  Frontend unit tests and static a11y guards"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npx vitest run"
 fi
@@ -118,7 +118,7 @@ fi
 # The browser suite boots its own backend and frontend on isolated ports
 # (8788 / 5174), so it does not care whether a dev server is already running.
 # It needs a Chromium download once: (cd frontend && npx playwright install chromium)
-step "10/12  Browser tests (real Chromium: hero journey, governance, accessibility)"
+step "10/13  Browser tests (real Chromium: hero journey, governance, accessibility)"
 # Playwright's browser cache lives in ~/.cache/ms-playwright on Linux/macOS and
 # in %LOCALAPPDATA%\ms-playwright on Windows; a path check for only one of them
 # silently skipped the whole suite on the other platform.
@@ -135,7 +135,7 @@ else
   run bash -c "cd frontend && npx playwright test --config playwright.optimizer.config.ts"
 fi
 
-step "11/12  Frontend production build"
+step "11/13  Frontend production build"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npm run build"
 else
@@ -144,9 +144,9 @@ else
 fi
 
 # The serving half of the nonce-based CSP is only testable once dist/ exists, and
-# step 9 is what creates it. Running this last is deliberate: the contract test
+# step 11 is what creates it. Running this last is deliberate: the contract test
 # skips without a build, so ordering it earlier would let it pass vacuously.
-step "12/12  Served-SPA security contract (CSP nonce, headers, traversal)"
+step "12/13  Served-SPA security contract (CSP nonce, headers, traversal)"
 if [[ -d frontend/dist ]]; then
   run "$PYTHON" -m pytest tests/contract/test_served_spa_security.py -q
 else
