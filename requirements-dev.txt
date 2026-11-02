@@ -6,13 +6,13 @@
 
 -r requirements.txt
 
-pytest==9.1.1
+pytest==9.2.0
 httpx==0.28.1
 
 # Lint and typecheck. `scripts/verify.sh` runs both, so a missing tool is a
 # verification failure rather than a silent skip.
-ruff==0.16.3
-mypy==2.3.1
+ruff==0.17.3
+mypy==2.4.1
 
 # Dependency vulnerability audit (verify.sh gate). Audits the pinned runtime
 # tree and this dev tree against the OSV/PyPI advisory databases. Needs network
@@ -23,5 +23,5 @@ pip-audit==2.10.1
 # installed, pyproject.toml ([tool.mypy]) does NOT need `ignore_missing_imports`
 # overrides for `yaml` or `networkx` -- and pyyaml/networkx calls are actually
 # typechecked instead of being silenced.
-types-PyYAML==6.0.12.20260906
-types-networkx==3.6.1.20260911
+types-PyYAML==6.0.12.20261030
+types-networkx==3.6.1.20261029
