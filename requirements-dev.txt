@@ -14,6 +14,11 @@ httpx==0.28.1
 ruff==0.16.3
 mypy==2.3.1
 
+# Dependency vulnerability audit (verify.sh gate). Audits the pinned runtime
+# tree and this dev tree against the OSV/PyPI advisory databases. Needs network
+# access, like the browser download it sits next to in the gate.
+pip-audit==2.10.1
+
 # Type stubs for the two third-party libraries that ship none. With these
 # installed, mypy.ini does NOT need `ignore_missing_imports` overrides for
 # `yaml` or `networkx` -- and pyyaml/networkx calls are actually typechecked

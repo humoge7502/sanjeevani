@@ -54,23 +54,6 @@ jobs:
         # if package.json and package-lock.json disagree.
         run: npm ci
 
-      # Runtime dependencies only (`--omit=dev`): a vulnerability in a build tool
-      # is a supply-chain concern for the build machine, not for what ships. This
-      # is BLOCKING because the production tree currently has zero findings, so a
-      # new one is a real regression rather than background noise.
-      - name: Audit production frontend dependencies
-        working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
-
-      # Informational on purpose. A blocking Python audit turns a fresh upstream
-      # advisory into a red build on a repository nobody has changed, which trains
-      # people to ignore it. The output is visible; the judgement stays human.
-      - name: Audit Python runtime dependencies (informational)
-        continue-on-error: true
-        run: |
-          python -m pip install pip-audit
-          python -m pip-audit -r requirements.txt || echo "::warning::pip-audit reported findings; review above"
-
       - name: Install Chromium for the browser suite
         working-directory: frontend
         # --with-deps pulls the shared libraries Chromium needs on a bare runner.
@@ -78,7 +61,9 @@ jobs:
         # without this the most valuable tests would silently not run.
         run: npx playwright install --with-deps chromium
 
-      # The single gate. Fails the job if any of the ten checks fail.
+      # The single gate. Fails the job if any of the twelve steps fail. It now
+      # includes the dependency audits (pip-audit + npm audit) itself, so the
+      # former standalone audit steps are gone: one definition, two environments.
       - name: Run verification gate
         run: bash scripts/verify.sh
 

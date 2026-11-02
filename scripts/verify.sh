@@ -70,13 +70,39 @@ else
   FAILED=1
 fi
 
+# Supply-chain gates (roadmap L-2). pip-audit checks the pinned runtime tree AND
+# the dev tree: the dev tools run on developer machines and (in vite's case)
+# produce the shipped artifacts, so an advisory there is not background noise.
+# Both trees were clean when this gate landed; the same commit also closed the
+# four dev-only npm findings (vite 7.3.6 -> 7.3.7, vitest 5.0.1 -> 5.1.0,
+# source-map-js 1.2.1 -> 1.2.2), so the gate starts from zero rather than from
+# an ignore list. A pinned vulnerability is a patch bump in the requirements
+# file -- the gate failing is the feature.
+step "5/12  Dependency audit (Python: pip-audit, runtime + dev requirements)"
+if "$PYTHON" -m pip_audit --version >/dev/null 2>&1; then
+  run "$PYTHON" -m pip_audit -r requirements.txt -r requirements-dev.txt
+else
+  echo "  SKIPPED - install dev tooling: pip install -r requirements-dev.txt"
+  FAILED=1
+fi
+
+# Full dependency tree, threshold high: moderate dev-tool advisories stay
+# visible-but-green (judgement stays human), a high one fails the gate.
+step "6/12  Dependency audit (frontend: npm, full tree)"
+if [[ -d frontend/node_modules ]]; then
+  run bash -c "cd frontend && npm audit --audit-level=high"
+else
+  echo "  SKIPPED - run 'npm --prefix frontend install' first"
+  FAILED=1
+fi
+
 # 445 tests. Markers: unit · contract · integration · e2e · redteam. The markers
 # OVERLAP (integration cases live inside the e2e module), so the suite total is
 # the honest number and summing the markers would double-count.
-step "5/10  Backend test suite (unit · contract · integration · e2e · red team)"
+step "7/12  Backend test suite (unit · contract · integration · e2e · red team)"
 run "$PYTHON" -m pytest -q
 
-step "6/10  Frontend typecheck (app, design system and browser specs)"
+step "8/12  Frontend typecheck (app, design system and browser specs)"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npx tsc -b"
 else
@@ -84,7 +110,7 @@ else
   FAILED=1
 fi
 
-step "7/10  Frontend unit tests and static a11y guards"
+step "9/12  Frontend unit tests and static a11y guards"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npx vitest run"
 fi
@@ -92,7 +118,7 @@ fi
 # The browser suite boots its own backend and frontend on isolated ports
 # (8788 / 5174), so it does not care whether a dev server is already running.
 # It needs a Chromium download once: (cd frontend && npx playwright install chromium)
-step "8/10  Browser tests (real Chromium: hero journey, governance, accessibility)"
+step "10/12  Browser tests (real Chromium: hero journey, governance, accessibility)"
 # Playwright's browser cache lives in ~/.cache/ms-playwright on Linux/macOS and
 # in %LOCALAPPDATA%\ms-playwright on Windows; a path check for only one of them
 # silently skipped the whole suite on the other platform.
@@ -109,7 +135,7 @@ else
   run bash -c "cd frontend && npx playwright test --config playwright.optimizer.config.ts"
 fi
 
-step "9/10  Frontend production build"
+step "11/12  Frontend production build"
 if [[ -d frontend/node_modules ]]; then
   run bash -c "cd frontend && npm run build"
 else
@@ -120,7 +146,7 @@ fi
 # The serving half of the nonce-based CSP is only testable once dist/ exists, and
 # step 9 is what creates it. Running this last is deliberate: the contract test
 # skips without a build, so ordering it earlier would let it pass vacuously.
-step "10/10  Served-SPA security contract (CSP nonce, headers, traversal)"
+step "12/12  Served-SPA security contract (CSP nonce, headers, traversal)"
 if [[ -d frontend/dist ]]; then
   run "$PYTHON" -m pytest tests/contract/test_served_spa_security.py -q
 else

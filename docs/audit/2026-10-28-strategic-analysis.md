@@ -219,7 +219,7 @@ lies between validation and connection is out of scope at this tier; no HSM.
 **What exists and holds (this baseline):** 439 backend (unit/contract/integration/
 e2e/redteam, adversarial suites asserting attacks FAIL), 46 frontend unit + static
 a11y guards, 48 real-Chromium browser tests across two viewports with axe-core,
-the served-SPA CSP contract, and a ten-gate `verify.sh` as the single definition
+the served-SPA CSP contract, and a twelve-gate `verify.sh` as the single definition
 (CI runs the same script). The stress harness adds matrix-scale determinism.
 
 **Gaps to close, in order:**
