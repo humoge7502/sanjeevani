@@ -15,6 +15,14 @@ updates:
         applies-to: version-updates
         patterns:
           - "*"
+    # pulp 3.x/4.x import numpy at module import time. The runtime deliberately
+    # does not ship numpy (the ML stack is optional, requirements-ml.txt), and
+    # CI is a numpy-free environment, so a pulp bump to 3+ breaks the optimizer
+    # import, health check and MILP tests (caught green-field by PR #12's CI).
+    # Raise the cap deliberately, together with the ML-stack decision.
+    ignore:
+      - dependency-name: "pulp"
+        versions: [">=3"]
 
   # npm: only the frontend's dev toolchain (react + react-dom are the only
   # runtime dependencies, by design — see ADR 0002).
