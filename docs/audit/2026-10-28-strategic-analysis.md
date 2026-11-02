@@ -159,7 +159,7 @@ follows is what a fresh pass finds *today*.
 |---|---|---|---|
 | L-1 | `pyproject.toml` consolidation (mypy.ini/ruff.toml/pytest.ini) | 2 h | cosmetic, tooling parity |
 | L-2 | `pip-audit` + `npm audit` in verify.sh | 2 h | supply-chain gate; roadmap §8 |
-| L-3 | SBOM on release (syft or `pip freeze`-based) | 2 h | pairs with L-2 |
+| L-3 | SBOM on release (syft or `pip freeze`-based) | 2 h | pairs with L-2; **landed 2026-11-03 as the freeze-based cheap tool** (`scripts/make_sbom.py` → `dist/sbom.json`, gate 13/13) — deliberately not syft: it inventories the installed environment, it does not claim binary-level provenance |
 | L-4 | `scripts/attest_ledger.py` not yet in verify.sh | 1 h | a sign+verify round-trip gate would catch drift early (its library tests already run in-suite) |
 | L-5 | Frontend bundle code-splitting | 2 h | roadmap L-2, unchanged |
 
@@ -219,7 +219,7 @@ lies between validation and connection is out of scope at this tier; no HSM.
 **What exists and holds (this baseline):** 439 backend (unit/contract/integration/
 e2e/redteam, adversarial suites asserting attacks FAIL), 46 frontend unit + static
 a11y guards, 48 real-Chromium browser tests across two viewports with axe-core,
-the served-SPA CSP contract, and a twelve-gate `verify.sh` as the single definition
+the served-SPA CSP contract, and a thirteen-gate `verify.sh` as the single definition
 (CI runs the same script). The stress harness adds matrix-scale determinism.
 
 **Gaps to close, in order:**

@@ -9,6 +9,11 @@
 runtime/
 *.jsonl
 
+# ---- build artifacts --------------------------------------------------------
+# dist/ holds the generated SBOM (dist/sbom.json); frontend/dist/ holds the
+# built SPA. Both are reproducible from the repository plus the environment.
+dist/
+
 # ---- python ----------------------------------------------------------------
 __pycache__/
 *.py[cod]

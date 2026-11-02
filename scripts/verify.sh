@@ -150,9 +150,19 @@ step "12/12  Served-SPA security contract (CSP nonce, headers, traversal)"
 if [[ -d frontend/dist ]]; then
   run "$PYTHON" -m pytest tests/contract/test_served_spa_security.py -q
 else
-  echo "  SKIPPED - no frontend build; step 9 did not produce dist/"
+  echo "  SKIPPED - no frontend build; step 11 did not produce dist/"
   FAILED=1
 fi
+
+# Software bill of materials (roadmap L-3). A freeze-based inventory of both
+# installed dependency trees written to dist/sbom.json -- deterministic (no
+# timestamps, sorted, sorted-key JSON), so runs are byte-comparable. This is
+# the honest cheap tool, not syft: python components come from the actual
+# environment, node components are the frontend's direct deps. The gate runs
+# it and then asserts the artifact exists and parses.
+step "13/13  SBOM generation (dist/sbom.json exists and parses)"
+run "$PYTHON" scripts/make_sbom.py
+run "$PYTHON" -c "import json; json.load(open('dist/sbom.json', encoding='utf-8'))"
 
 echo
 echo "=============================================================="

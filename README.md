@@ -147,7 +147,8 @@ Every command below exists in this repository. Nothing is aspirational.
 | `bash scripts/dev.sh` | Backend + frontend together (dev servers, HMR) |
 | `python scripts/serve.py` | **Production entrypoint**: serves the API *and* the built UI on one port |
 | `docker compose up --build` | Same thing, containerised: UI + API on :8787 |
-| `bash scripts/verify.sh` | Everything: twelve gates — health, compile, lint, types, **dependency audits (pip + npm)**, tests, browser, build, served-SPA contract |
+| `bash scripts/verify.sh` | Everything: thirteen gates — health, compile, lint, types, **dependency audits (pip + npm)**, tests, browser, build, served-SPA contract, **SBOM** |
+| `python scripts/make_sbom.py` | **Generate the SBOM** at `dist/sbom.json` (deterministic, freeze-based — also a `verify.sh` gate) |
 | `python -m ruff check .` | Python lint (also a gate in `verify.sh`, or `npm run lint`) |
 | `python -m mypy backend scripts` | Python typecheck (also a gate in `verify.sh`, or `npm run typecheck`) |
 | `python -m pytest` | Backend suite (451 tests) |
