@@ -1,4 +1,4 @@
-﻿﻿# Security threat model (STRIDE)
+﻿﻿﻿﻿# Security threat model (STRIDE)
 
 **Scope:** M3's governance and execution plane, its API, the SAP-shaped mocks,
 the audit ledger, and the demo's reliability surface.

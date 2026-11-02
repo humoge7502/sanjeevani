@@ -1,4 +1,4 @@
-﻿﻿# SANJEEVANI — Comprehensive Audit & Roadmap
+﻿﻿﻿﻿# SANJEEVANI — Comprehensive Audit & Roadmap
 
 **Date:** 2026-10-25
 **Scope:** full repository (`humoge7502/sanjeevani`) — backend (M1+M3), frontend, data,

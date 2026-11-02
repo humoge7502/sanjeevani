@@ -1,4 +1,4 @@
-﻿﻿#!/usr/bin/env bash
+﻿﻿﻿﻿#!/usr/bin/env bash
 # Full pre-demo verification. Run this before every rehearsal and before any commit.
 #
 #   bash scripts/verify.sh
