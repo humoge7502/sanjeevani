@@ -21,6 +21,7 @@
  * available only visually.
  */
 
+import type { JSX } from "react";
 import type { NetworkSnapshot } from "../lib/types";
 import { Provenance } from "./primitives";
 

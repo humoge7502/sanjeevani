@@ -8,6 +8,8 @@
  * disabling a button here.
  */
 
+import type { JSX } from "react";
+
 import type {
   ApprovalRequest,
   ComplianceRecord,

@@ -7,7 +7,7 @@
  * colour pairing, keyboard behaviour) is solved once rather than per screen.
  */
 
-import type { ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
 
 import { OUTCOME_GLYPH, OUTCOME_TONE } from "../lib/format";
 

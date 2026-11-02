@@ -8,6 +8,8 @@
  * visible rather than asserted.
  */
 
+import type { JSX } from "react";
+
 import type {
   ConsignmentRow,
   ExcursionAnalysis,

@@ -7,6 +7,8 @@
  * a refusal or a deduction, not just the successes.
  */
 
+import type { JSX } from "react";
+
 import type {
   DemoState,
   GovernancePayload,

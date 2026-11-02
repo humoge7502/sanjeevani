@@ -9,6 +9,7 @@
  * frontend never decides whether a stage is permitted.
  */
 
+import type { JSX } from "react";
 import type { DemoState, LoopState } from "../lib/types";
 import { LOOP_STAGES, deriveLoop, type LoopStatus } from "../lib/format";
 

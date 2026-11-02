@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { JSX } from "react";
 
 import { GovernanceRefusal, api } from "./lib/api";
 import type { DemoState, NetworkSnapshot } from "./lib/types";
