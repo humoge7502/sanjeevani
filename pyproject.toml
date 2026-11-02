@@ -1,0 +1,163 @@
+# Tool configuration for SANJEEVANI (L-1 consolidation: mypy.ini + ruff.toml +
+# pytest.ini, settings byte-for-byte equivalent, normalized to no-BOM UTF-8).
+#
+# There is deliberately no [project] table: this repository is an application
+# (backend/ + frontend/ + scripts/), not an installable package, and nothing
+# builds it with pip. Only the [tool.*] tables live here.
+#
+#   python -m ruff check .          # lint
+#   python -m mypy backend scripts  # typecheck
+#   python -m pytest                # test suite
+#
+# Tool config-file precedence makes the old files take priority if they are
+# ever re-added (mypy.ini > pyproject.toml for mypy; pytest.ini > pyproject.toml
+# for pytest; ruff.toml > pyproject.toml for ruff), so consolidation means the
+# three old files are deleted, not duplicated.
+
+# ---------------------------------------------------------------------------
+# Ruff — the project's Python linter.
+#
+#   python -m ruff check .          # report
+#   python -m ruff check . --fix    # apply the safe fixes
+#
+# The rule set is chosen to match the suppressions the code already carries. The
+# source is annotated with `# noqa: SLF001` (deliberate access to a private
+# member), `# noqa: BLE001` (a deliberate broad catch) and `# noqa: E402`
+# (imports after a path setup). Those directives were written for a config that
+# did not exist, so ruff reported all of them as unused. Enabling the rules makes
+# each suppression *mean* something and turns it into documentation, which is
+# what the author intended.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # import sorting
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear (real bug patterns)
+  "C4",   # comprehensions
+  "SIM",  # simplify
+  "PIE",  # misc lints
+  "RUF",  # ruff-specific
+  "S",    # flake8-bandit (security)
+  "SLF",  # flake8-self (private member access must be deliberate)
+  "ISC",  # implicit string concatenation
+  "RET",  # return consistency
+  "ARG",  # unused arguments
+  "BLE",  # blind except (deliberate, and suppressed inline with a reason)
+]
+
+ignore = [
+  # `(str, Enum)` vs `StrEnum` is not a cosmetic difference: with StrEnum,
+  # `str(member)` returns the value, whereas the mixin returns "Severity.HIGH".
+  # The enums here are interpolated into ledger detail and error text, so
+  # switching would silently change recorded audit strings. Not worth it.
+  "UP042",
+  # Formatter territory, not correctness. The project is hand-formatted and
+  # consistent; enforcing a different whitespace style would churn the diff
+  # without changing behaviour.
+  "E1",
+  "E2",
+  "E3",
+  "W1",
+  "W2",
+  "W3",
+  "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use assert, reach into private state to simulate tampering,
+# and construct deliberately malformed input. Those are the point of the suite.
+"tests/**" = ["S101", "SLF001", "ARG001", "ARG002", "S105", "S106", "S108"]
+# These two implement interfaces whose signatures are fixed by the protocol they
+# satisfy (the M2 plan provider, and the SAP transport seam). An argument they do
+# not need is still part of the contract they must match.
+"backend/m2/recovery_plan_provider.py" = ["ARG002"]
+"backend/sap/execution.py" = ["ARG002", "ARG001"]
+# Scripts are operator-facing CLIs: printing to stdout is their interface.
+"scripts/**" = ["S101", "T201", "E402"]
+# The governance state machine owns its transition method; the module that
+# implements it is the one place allowed to call it privately.
+"backend/governance/approval.py" = ["SLF001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "tests", "scripts"]
+
+# ---------------------------------------------------------------------------
+# mypy.
+#
+#   python -m mypy backend scripts
+#
+# Strictness is set to what this codebase can actually hold today: full type
+# checking on the project's own code, plus the third-party stubs (`types-PyYAML`
+# and `types-networkx`, both pinned in requirements-dev.txt) so PyYAML and
+# NetworkX calls are checked rather than silenced with per-site `# type: ignore`.
+# If those stubs are not installed, re-add the two `ignore_missing_imports`
+# overrides for `yaml` and `networkx`.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+# Checked against the version the project ships on (CI installs 3.13). Pinning an
+# older syntax level makes mypy unable to PARSE modern third-party stubs -- numpy
+# 2.5's .pyi files use 3.12 `type` statements -- which fails the gate with a
+# syntax error in a stub rather than a finding in our code.
+python_version = "3.13"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+show_error_codes = true
+
+# The project mixes pydantic models with plain dicts from YAML in a few places.
+# Disallow the categories that hide real bugs without demanding annotations on
+# every local, which would be noise rather than safety.
+disallow_untyped_defs = false
+check_untyped_defs = true
+
+# PuLP ships no type stubs. It is an OPTIONAL solver dependency, imported lazily
+# inside the MILP path in backend/m2/optimizer.py, and the code is written to run
+# without it (exact enumeration is the fallback). Ignoring its missing stubs is
+# the honest setting: we cannot type what the library never declared, and adding
+# `# type: ignore` at the import site would hide a genuine ImportError.
+[[tool.mypy.overrides]]
+module = "pulp.*"
+ignore_missing_imports = true
+
+# The forecasting model is TRAINED by scripts/train_forecasting_model.py, which is
+# the only place in the repository that imports the numeric stack. Those packages
+# ship no stubs. Crucially, none of them is importable from the runtime path:
+# backend/forecasting/duration.py evaluates the exported tree ensemble in pure
+# Python, and tests/unit/test_forecasting.py asserts that in a clean interpreter.
+[[tool.mypy.overrides]]
+module = "pandas.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "numpy.*"
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# pytest. The markers OVERLAP (integration cases live inside the e2e module), so
+# the suite total is the honest number and summing the markers would
+# double-count.
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+markers = [
+    "unit: single-module behaviour tests",
+    "contract: frozen shared-contract tests",
+    "integration: cross-module and cross-member boundary tests",
+    "e2e: full hero-scenario loop tests",
+    "redteam: adversarial / governance-bypass tests",
+]

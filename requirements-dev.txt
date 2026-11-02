@@ -20,8 +20,8 @@ mypy==2.3.1
 pip-audit==2.10.1
 
 # Type stubs for the two third-party libraries that ship none. With these
-# installed, mypy.ini does NOT need `ignore_missing_imports` overrides for
-# `yaml` or `networkx` -- and pyyaml/networkx calls are actually typechecked
-# instead of being silenced.
+# installed, pyproject.toml ([tool.mypy]) does NOT need `ignore_missing_imports`
+# overrides for `yaml` or `networkx` -- and pyyaml/networkx calls are actually
+# typechecked instead of being silenced.
 types-PyYAML==6.0.12.20260906
 types-networkx==3.6.1.20260911

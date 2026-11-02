@@ -28,7 +28,7 @@ from pathlib import Path
 import uvicorn
 
 # Allow `python scripts/serve.py` from the repository root without installing the
-# package. The import-after-code pattern is why ruff.toml ignores E402 for
+# package. The import-after-code pattern is why pyproject.toml ignores E402 for
 # scripts/**.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
